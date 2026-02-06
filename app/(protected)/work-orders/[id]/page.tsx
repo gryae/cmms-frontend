@@ -131,10 +131,19 @@ const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const uploadAttachment = async () => {
     if (!file) return;
+    try {
     const formData = new FormData();
     formData.append('file', file);
     await api.post(`/work-orders/${id}/attachments`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
     setFile(null); loadAttachments();
+    } catch (err: any) {
+      const message = err?.response?.data?.message || 'Failed to upload attachment.';
+      if(message.includes('File too large') || message.includes('LIMIT_FILE_SIZE')) {
+        alert('Ukuran file terlalu besar. Maksimal 1MB.');
+      } else {
+        alert(message);
+    }
+  }
   };
 
   const openPreview = (url: string) => {
