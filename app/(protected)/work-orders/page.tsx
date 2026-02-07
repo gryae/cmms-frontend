@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   Container, Typography, Paper, Table, TableHead, TableRow, TableCell,
   TableBody, Box, Button, IconButton, Stack, Tooltip, TableContainer,
-  alpha, TextField, InputAdornment, MenuItem, FormControl, Select, Grid
+  alpha, TextField, InputAdornment, MenuItem, FormControl, Select, Grid, TableSortLabel
 } from '@mui/material';
 import {
   DeleteOutline, Add, DashboardOutlined, CalendarMonthOutlined,
@@ -21,7 +21,7 @@ export default function WorkOrdersPage() {
   const [role, setRole] = useState<string | null>(null);
   const [workOrders, setWorkOrders] = useState<any[]>([]);
   
-  // ================= STATE FILTERING =================
+  // ================= STATE FILTERING & SORTING =================
   const [filteredData, setFilteredData] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -29,6 +29,10 @@ export default function WorkOrdersPage() {
   const [assigneeFilter, setAssigneeFilter] = useState('ALL');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  
+  // Sort State
+  const [order, setOrder] = useState<'asc' | 'desc'>('desc');
+  const [orderBy, setOrderBy] = useState('createdAt');
 
   useEffect(() => {
     const user = getUserFromToken();
@@ -46,10 +50,11 @@ export default function WorkOrdersPage() {
     }
   };
 
-  // ================= LOGIC FILTERING CORE =================
+  // ================= LOGIC FILTERING & SORTING CORE =================
   useEffect(() => {
     let result = [...workOrders];
 
+    // Search Filter
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(wo => 
@@ -57,10 +62,20 @@ export default function WorkOrdersPage() {
         wo.asset?.name?.toLowerCase().includes(q)
       );
     }
-    if (statusFilter !== 'ALL') result = result.filter(wo => wo.status === statusFilter);
+
+    // Status Filter (Including Overdue Logic)
+    if (statusFilter !== 'ALL') {
+      if (statusFilter === 'OVERDUE') {
+        result = result.filter(wo => wo.isOverdue === true);
+      } else {
+        result = result.filter(wo => wo.status === statusFilter);
+      }
+    }
+
     if (priorityFilter !== 'ALL') result = result.filter(wo => wo.priority === priorityFilter);
     if (assigneeFilter !== 'ALL') result = result.filter(wo => wo.assignee?.email === assigneeFilter);
     
+    // Date Filter
     if (startDate) result = result.filter(wo => new Date(wo.createdAt) >= new Date(startDate));
     if (endDate) {
       const end = new Date(endDate);
@@ -68,8 +83,30 @@ export default function WorkOrdersPage() {
       result = result.filter(wo => new Date(wo.createdAt) <= end);
     }
 
+    // Sorting Logic
+    result.sort((a, b) => {
+      let aValue: any = a[orderBy];
+      let bValue: any = b[orderBy];
+
+      // Deep access for nested objects
+      if (orderBy === 'asset') { aValue = a.asset?.name || ''; bValue = b.asset?.name || ''; }
+      if (orderBy === 'assignee') { aValue = a.assignee?.email || ''; bValue = b.assignee?.email || ''; }
+
+      if (order === 'desc') {
+        return aValue < bValue ? 1 : -1;
+      } else {
+        return aValue > bValue ? 1 : -1;
+      }
+    });
+
     setFilteredData(result);
-  }, [search, statusFilter, priorityFilter, assigneeFilter, startDate, endDate, workOrders]);
+  }, [search, statusFilter, priorityFilter, assigneeFilter, startDate, endDate, workOrders, order, orderBy]);
+
+  const handleSort = (property: string) => {
+    const isAsc = orderBy === property && order === 'asc';
+    setOrder(isAsc ? 'desc' : 'asc');
+    setOrderBy(property);
+  };
 
   const resetFilters = () => {
     setSearch('');
@@ -78,6 +115,8 @@ export default function WorkOrdersPage() {
     setAssigneeFilter('ALL');
     setStartDate('');
     setEndDate('');
+    setOrder('desc');
+    setOrderBy('createdAt');
   };
 
   const uniqueAssignees = Array.from(new Set(workOrders.map(wo => wo.assignee?.email).filter(Boolean)));
@@ -124,7 +163,6 @@ export default function WorkOrdersPage() {
             </Button>
           )}
           
-          {/* INI TOMBOL CALENDAR YANG TADI HILANG */}
           {role && ['ADMIN', 'SUPERVISOR', 'TECHNICIAN'].includes(role) && (
             <Button
               variant="outlined"
@@ -163,6 +201,7 @@ export default function WorkOrdersPage() {
                 <MenuItem value="ASSIGNED">Assigned</MenuItem>
                 <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
                 <MenuItem value="DONE">Done</MenuItem>
+                <MenuItem value="OVERDUE" sx={{ color: '#f44336', fontWeight: 'bold' }}>⚠️ OVERDUE</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -205,12 +244,27 @@ export default function WorkOrdersPage() {
         <Table>
           <TableHead sx={{ bgcolor: alpha('#7C7CFF', 0.08) }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 700, py: 2 }}>Title</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Priority</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Asset</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Assignee</TableCell>
-              <TableCell sx={{ fontWeight: 700 }}>Created At</TableCell>
+              <TableCell sx={{ fontWeight: 700, py: 2 }}>
+                <TableSortLabel active={orderBy === 'title'} direction={orderBy === 'title' ? order : 'asc'} onClick={() => handleSort('title')}>Title</TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>
+                <TableSortLabel active={orderBy === 'priority'} direction={orderBy === 'priority' ? order : 'asc'} onClick={() => handleSort('priority')}>Priority</TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>
+                <TableSortLabel active={orderBy === 'status'} direction={orderBy === 'status' ? order : 'asc'} onClick={() => handleSort('status')}>Status</TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>
+                <TableSortLabel active={orderBy === 'asset'} direction={orderBy === 'asset' ? order : 'asc'} onClick={() => handleSort('asset')}>Asset</TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>
+                <TableSortLabel active={orderBy === 'assignee'} direction={orderBy === 'assignee' ? order : 'asc'} onClick={() => handleSort('assignee')}>Assignee</TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>
+                <TableSortLabel active={orderBy === 'createdAt'} direction={orderBy === 'createdAt' ? order : 'asc'} onClick={() => handleSort('createdAt')}>Created At</TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>
+                <TableSortLabel active={orderBy === 'dueDate'} direction={orderBy === 'dueDate' ? order : 'asc'} onClick={() => handleSort('dueDate')}>Due Date</TableSortLabel>
+              </TableCell>
               <TableCell align="right" sx={{ fontWeight: 700 }}>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -224,7 +278,14 @@ export default function WorkOrdersPage() {
                     <Typography variant="caption" sx={{ fontWeight: 700 }}>{wo.priority}</Typography>
                   </Box>
                 </TableCell>
-                <TableCell><StatusChip status={wo.status} /></TableCell>
+                <TableCell>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <StatusChip status={wo.status} />
+                      {wo.isOverdue && (
+                        <StatusChip status="OVERDUE"/>
+                      )}
+                    </Stack>
+                  </TableCell>
                 <TableCell>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <AssignmentOutlined sx={{ fontSize: 16, color: 'text.secondary' }} />
@@ -232,12 +293,14 @@ export default function WorkOrdersPage() {
                   </Stack>
                 </TableCell>
                 <TableCell><Typography variant="body2">{wo.assignee?.email?.split('@')[0] || '-'}</Typography></TableCell>
-                <TableCell><Typography variant="body2" color="text.secondary">{new Date(wo.createdAt).toLocaleDateString()}</Typography></TableCell>
+                <TableCell><Typography variant="body2" color="text.secondary">{new Date(wo.createdAt).toLocaleDateString()} ({wo.progressDays}d)</Typography></TableCell>
+                <TableCell><Typography variant="body2" color={wo.isOverdue? 'error' : 'text.secondary'} fontWeight={wo.isOverdue?700:400}>{wo.dueDate ? new Date(wo.dueDate).toLocaleDateString() : '-'}</Typography></TableCell>
+    
                 <TableCell align="right">
                   <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
                     {role === 'TECHNICIAN' && wo.status === 'ASSIGNED' && (
                       <Button size="small" variant="contained" startIcon={<PlayArrowOutlined />} onClick={() => updateStatus(wo.id, 'IN_PROGRESS')} sx={{ borderRadius: '8px', textTransform: 'none' }}>Start</Button>
-                    )}
+                    )}  
                     {role === 'TECHNICIAN' && wo.status === 'IN_PROGRESS' && (
                       <Button size="small" variant="contained" color="success" startIcon={<CheckCircleOutline />} onClick={() => updateStatus(wo.id, 'DONE')} sx={{ borderRadius: '8px', textTransform: 'none' }}>Finish</Button>
                     )}

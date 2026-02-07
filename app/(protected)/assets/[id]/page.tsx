@@ -12,6 +12,44 @@ import {
   Inventory, Business, LocationOn, Event, History
 } from '@mui/icons-material';
 
+//INFO CARD
+type infoCardProps = {
+  label: string;
+  value: any;
+  icon: React.ReactNode;
+  field: string;
+  editMode: boolean;
+  form:any;
+  setForm: (v:any) => void;
+};
+const InfoCard = ({ label, value, icon, field,editMode,form,setForm }: any) => {
+   return (
+   <Box sx={{ mb: 3 }}>
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+        {icon}
+        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 700 }}>
+          {label}
+        </Typography>
+      </Stack>
+      {editMode ? (
+        <TextField
+          fullWidth
+          size="small"
+          variant="outlined"
+          value={form[field] ?? ''}
+          onChange={(e) => setForm((prev:any) => ({ ...prev, [field]: e.target.value }))}
+          sx={{ bgcolor: alpha('#fff', 0.02) }}
+        />
+      ) : (
+        <Typography variant="body1" fontWeight={600} sx={{ ml: 4 }}>
+          {value || '-'}
+        </Typography>
+      )}
+    </Box>
+   );
+};
+
+
 export default function AssetDetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -45,30 +83,7 @@ export default function AssetDetailPage() {
 
   if (!asset) return null;
 
-  const InfoCard = ({ label, value, icon, field }: any) => (
-    <Box sx={{ mb: 3 }}>
-      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-        {icon}
-        <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 700 }}>
-          {label}
-        </Typography>
-      </Stack>
-      {editMode ? (
-        <TextField
-          fullWidth
-          size="small"
-          variant="outlined"
-          value={form[field] ?? ''}
-          onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-          sx={{ bgcolor: alpha('#fff', 0.02) }}
-        />
-      ) : (
-        <Typography variant="body1" fontWeight={600} sx={{ ml: 4 }}>
-          {value || '-'}
-        </Typography>
-      )}
-    </Box>
-  );
+  
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -135,11 +150,11 @@ export default function AssetDetailPage() {
 
             <Divider sx={{ mb: 3, opacity: 0.5 }} />
 
-            <InfoCard label="Asset Name" value={asset.name} field="name" icon={<Inventory sx={{ fontSize: 18, color: 'text.secondary' }} />} />
-            <InfoCard label="Asset Code" value={asset.code} field="code" icon={<Inventory sx={{ fontSize: 18, color: 'text.secondary' }} />} />
-            <InfoCard label="Branch" value={asset.branch} field="branch" icon={<Business sx={{ fontSize: 18, color: 'text.secondary' }} />} />
-            <InfoCard label="Location" value={asset.location} field="location" icon={<LocationOn sx={{ fontSize: 18, color: 'text.secondary' }} />} />
-            <InfoCard label="Procurement Year" value={asset.procurementYear} field="procurementYear" icon={<Event sx={{ fontSize: 18, color: 'text.secondary' }} />} />
+            <InfoCard label="Asset Name" value={asset.name} field="name" icon={<Inventory sx={{ fontSize: 18, color: 'text.secondary' }} />} editMode={editMode} form={form} setForm={setForm} />
+            <InfoCard label="Asset Code" value={asset.code} field="code" icon={<Inventory sx={{ fontSize: 18, color: 'text.secondary' }} />} editMode={editMode} form={form} setForm={setForm}/>
+            <InfoCard label="Branch" value={asset.branch} field="branch" icon={<Business sx={{ fontSize: 18, color: 'text.secondary' }} />} editMode={editMode} form={form} setForm={setForm}/>
+            <InfoCard label="Location" value={asset.location} field="location" icon={<LocationOn sx={{ fontSize: 18, color: 'text.secondary' }} />} editMode={editMode} form={form} setForm={setForm}/>
+            <InfoCard label="Procurement Year" value={asset.procurementYear} field="procurementYear" icon={<Event sx={{ fontSize: 18, color: 'text.secondary' }} />} editMode={editMode} form={form} setForm={setForm}/>
 
             {editMode && (
               <Button 

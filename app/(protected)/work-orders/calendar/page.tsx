@@ -125,7 +125,7 @@ export default function WorkOrderCalendarPage() {
             .filter((wo) => wo.dueDate)
             .map((wo) => ({
               id: wo.id,
-              title: `[${wo.priority}] ${wo.title}`,
+              title: `[${wo.title}] ${wo.priority}`,
               date: wo.dueDate,
               backgroundColor: 
                 wo.priority === 'HIGH' && wo.status !== 'DONE'

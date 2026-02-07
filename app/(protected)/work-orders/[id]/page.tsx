@@ -189,7 +189,39 @@ const closePreview = () => {
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box>
           <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
-            <StatusChip status={wo.status} />
+<Stack direction="row" spacing={1} alignItems="center">
+  <StatusChip status={wo.status} />
+
+  {wo.isOverdue && (
+    <Typography
+      variant="caption"
+      sx={{
+        bgcolor: alpha('#f44336', 0.15),
+        color: '#f44336',
+        px: 1,
+        py: 0.5,
+        borderRadius: 1,
+        fontWeight: 800,
+      }}
+    >
+      OVERDUE {wo.overdueDays} hari
+    </Typography>
+  )}
+
+  <Typography
+    variant="caption"
+    sx={{
+      bgcolor: alpha('#7C7CFF', 0.15),
+      px: 1,
+      py: 0.5,
+      borderRadius: 1,
+      fontWeight: 700,
+    }}
+  >
+    Progress: {wo.progressDays} hari
+  </Typography>
+</Stack>
+            
             <Typography variant="caption" sx={{ bgcolor: alpha('#7C7CFF', 0.1), px: 1, py: 0.5, borderRadius: 1, color: '#7C7CFF', fontWeight: 'bold' }}>
               #{wo.id.slice(-6).toUpperCase()}
             </Typography>
@@ -223,6 +255,49 @@ const closePreview = () => {
                 <Description color="primary" /> Details
               </Typography>
               <Grid container spacing={3}>
+                <Grid item xs={12}>
+  <Typography variant="caption" color="text.secondary">
+    Asset
+  </Typography>
+
+  <Stack
+    direction="row"
+    spacing={2}
+    alignItems="center"
+    sx={{
+      mt: 0.5,
+      p: 1.5,
+      borderRadius: 2,
+      bgcolor: alpha('#7C7CFF', 0.05),
+      border: '1px solid rgba(255,255,255,0.08)',
+      cursor: 'pointer',
+      '&:hover': {
+        bgcolor: alpha('#7C7CFF', 0.1),
+      },
+    }}
+    onClick={() => router.push(`/assets/${wo.asset?.id}`)}
+  >
+    <Avatar
+      variant="rounded"
+      sx={{
+        bgcolor: alpha('#7C7CFF', 0.15),
+        color: '#7C7CFF',
+      }}
+    >
+      <BuildCircle />
+    </Avatar>
+
+    <Box>
+      <Typography fontWeight={700}>
+        {wo.asset?.name || '-'}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {wo.asset?.code || 'No asset code'}
+      </Typography>
+    </Box>
+  </Stack>
+</Grid>
+
                 <Grid item xs={12} sm={6}>
                   <Typography variant="caption" color="text.secondary">Priority</Typography>
                   {editMode ? (
