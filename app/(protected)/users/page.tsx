@@ -12,13 +12,14 @@ import {
   AdminPanelSettings, SupervisorAccount, Engineering
 } from '@mui/icons-material';
 
-const ROLES = ['ADMIN', 'SUPERVISOR', 'TECHNICIAN'];
+const ROLES = ['ADMIN', 'TECHNICIAN','USER'];
 
 // Helper untuk icon berdasarkan role
 const RoleIcon = ({ role }: { role: string }) => {
   switch (role) {
     case 'ADMIN': return <AdminPanelSettings sx={{ fontSize: 18, color: '#f44336' }} />;
     case 'SUPERVISOR': return <SupervisorAccount sx={{ fontSize: 18, color: '#2196f3' }} />;
+    case 'USER': return <SupervisorAccount sx={{ fontSize: 18, color: '#2196f3' }} />;
     default: return <Engineering sx={{ fontSize: 18, color: '#4caf50' }} />;
   }
 };
@@ -26,7 +27,7 @@ const RoleIcon = ({ role }: { role: string }) => {
 export default function UserManagementPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ email: '', password: '', role: 'TECHNICIAN' });
+  const [form, setForm] = useState({ email: '', password: '', role: 'TECHNICIAN', name:''});
 
   const load = async () => {
     try {
@@ -70,7 +71,7 @@ export default function UserManagementPage() {
     try {
       await api.post('/users', form);
       setOpen(false);
-      setForm({ email: '', password: '', role: 'TECHNICIAN' });
+      setForm({ email: '', password: '', role: 'TECHNICIAN',name:'' });
       load();
     } catch (e: any) {
       alert(e?.response?.data?.message || 'Failed to create user');
@@ -187,6 +188,13 @@ export default function UserManagementPage() {
               variant="filled"
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+             <TextField
+              label="name"
+              fullWidth
+              variant="filled"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
             <TextField
               label="Password"

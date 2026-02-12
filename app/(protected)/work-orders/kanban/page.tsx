@@ -47,7 +47,7 @@ export default function KanbanPage() {
 
   useEffect(() => {
     const user = getUserFromToken();
-    if (!user || !['ADMIN', 'SUPERVISOR'].includes(user.role)) {
+    if (!user || !['ADMIN', 'SUPERVISOR','USER'].includes(user.role)) {
       router.push('/work-orders');
       return;
     }

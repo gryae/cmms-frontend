@@ -27,6 +27,7 @@ export default function WorkOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [assigneeFilter, setAssigneeFilter] = useState('ALL');
+  const [creatorFilter, setCreatorFilter] = useState('ALL'); // Tambah filter creator
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
@@ -58,8 +59,10 @@ export default function WorkOrdersPage() {
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(wo => 
-        wo.title.toLowerCase().includes(q) || 
-        wo.asset?.name?.toLowerCase().includes(q)
+        wo.title?.toLowerCase().includes(q) || 
+        wo.asset?.name?.toLowerCase().includes(q) ||
+        wo.createdBy?.email?.toLowerCase().includes(q) ||
+        wo.createdBy?.name?.toLowerCase().includes(q)
       );
     }
 
@@ -74,6 +77,7 @@ export default function WorkOrdersPage() {
 
     if (priorityFilter !== 'ALL') result = result.filter(wo => wo.priority === priorityFilter);
     if (assigneeFilter !== 'ALL') result = result.filter(wo => wo.assignee?.email === assigneeFilter);
+    if (creatorFilter !== 'ALL') result = result.filter(wo => wo.createdBy?.email === creatorFilter);
     
     // Date Filter
     if (startDate) result = result.filter(wo => new Date(wo.createdAt) >= new Date(startDate));
@@ -88,9 +92,9 @@ export default function WorkOrdersPage() {
       let aValue: any = a[orderBy];
       let bValue: any = b[orderBy];
 
-      // Deep access for nested objects
       if (orderBy === 'asset') { aValue = a.asset?.name || ''; bValue = b.asset?.name || ''; }
       if (orderBy === 'assignee') { aValue = a.assignee?.email || ''; bValue = b.assignee?.email || ''; }
+      if (orderBy === 'createdBy') { aValue = a.createdBy?.email || a.createdBy?.name || ''; bValue = b.createdBy?.email || b.createdBy?.name || ''; }
 
       if (order === 'desc') {
         return aValue < bValue ? 1 : -1;
@@ -100,7 +104,7 @@ export default function WorkOrdersPage() {
     });
 
     setFilteredData(result);
-  }, [search, statusFilter, priorityFilter, assigneeFilter, startDate, endDate, workOrders, order, orderBy]);
+  }, [search, statusFilter, priorityFilter, assigneeFilter, creatorFilter, startDate, endDate, workOrders, order, orderBy]);
 
   const handleSort = (property: string) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -113,6 +117,7 @@ export default function WorkOrdersPage() {
     setStatusFilter('ALL');
     setPriorityFilter('ALL');
     setAssigneeFilter('ALL');
+    setCreatorFilter('ALL');
     setStartDate('');
     setEndDate('');
     setOrder('desc');
@@ -120,6 +125,7 @@ export default function WorkOrdersPage() {
   };
 
   const uniqueAssignees = Array.from(new Set(workOrders.map(wo => wo.assignee?.email).filter(Boolean)));
+  const uniqueCreators = Array.from(new Set(workOrders.map(wo => wo.createdBy?.email).filter(Boolean)));
 
   // ================= ACTIONS =================
   const updateStatus = async (id: string, status: string) => {
@@ -152,7 +158,7 @@ export default function WorkOrdersPage() {
         </Box>
 
         <Stack direction="row" spacing={1.5}>
-          {role && ['ADMIN', 'SUPERVISOR'].includes(role) && (
+          {role && ['ADMIN', 'SUPERVISOR','USER'].includes(role) && (
             <Button
               variant="outlined"
               startIcon={<DashboardOutlined />}
@@ -163,7 +169,7 @@ export default function WorkOrdersPage() {
             </Button>
           )}
           
-          {role && ['ADMIN', 'SUPERVISOR', 'TECHNICIAN'].includes(role) && (
+          {role && ['ADMIN', 'SUPERVISOR', 'TECHNICIAN','USER'].includes(role) && (
             <Button
               variant="outlined"
               startIcon={<CalendarMonthOutlined />}
@@ -173,7 +179,7 @@ export default function WorkOrdersPage() {
               Calendar
             </Button>
           )}
-
+          {role && ['ADMIN', 'SUPERVISOR','USER'].includes(role) && (
           <Button
             variant="contained"
             startIcon={<Add />}
@@ -182,21 +188,23 @@ export default function WorkOrdersPage() {
           >
             New Order
           </Button>
+          )}
         </Stack>
       </Box>
+      
 
       {/* FILTER PANEL */}
       <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)', bgcolor: alpha('#fff', 0.02) }}>
         <Grid container spacing={2} alignItems="flex-end">
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={2.5}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>SEARCH</Typography>
-            <TextField fullWidth size="small" placeholder="Title or Asset..." value={search} onChange={(e) => setSearch(e.target.value)} InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
+            <TextField fullWidth size="small" placeholder="Title, Asset, or Staff..." value={search} onChange={(e) => setSearch(e.target.value)} InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
           </Grid>
-          <Grid item xs={6} md={1.5}>
+          <Grid item xs={6} md={1.2}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>STATUS</Typography>
             <FormControl fullWidth size="small">
               <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ borderRadius: '10px' }}>
-                <MenuItem value="ALL">All Status</MenuItem>
+                <MenuItem value="ALL">All</MenuItem>
                 <MenuItem value="OPEN">Open</MenuItem>
                 <MenuItem value="ASSIGNED">Assigned</MenuItem>
                 <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
@@ -205,23 +213,32 @@ export default function WorkOrdersPage() {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={6} md={1.5}>
+          <Grid item xs={6} md={1.2}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>PRIORITY</Typography>
             <FormControl fullWidth size="small">
               <Select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} sx={{ borderRadius: '10px' }}>
-                <MenuItem value="ALL">All Priority</MenuItem>
+                <MenuItem value="ALL">All</MenuItem>
                 <MenuItem value="LOW">Low</MenuItem>
                 <MenuItem value="MEDIUM">Medium</MenuItem>
                 <MenuItem value="HIGH">High</MenuItem>
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={12} md={2}>
+          <Grid item xs={6} md={1.5}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>ASSIGNEE</Typography>
             <FormControl fullWidth size="small">
               <Select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} sx={{ borderRadius: '10px' }}>
                 <MenuItem value="ALL">All Staff</MenuItem>
                 {uniqueAssignees.map((email: any) => <MenuItem key={email} value={email}>{email.split('@')[0]}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={6} md={1.5}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>CREATED BY</Typography>
+            <FormControl fullWidth size="small">
+              <Select value={creatorFilter} onChange={(e) => setCreatorFilter(e.target.value)} sx={{ borderRadius: '10px' }}>
+                <MenuItem value="ALL">All Creators</MenuItem>
+                {uniqueCreators.map((email: any) => <MenuItem key={email} value={email}>{email.split('@')[0]}</MenuItem>)}
               </Select>
             </FormControl>
           </Grid>
@@ -263,6 +280,9 @@ export default function WorkOrdersPage() {
                 <TableSortLabel active={orderBy === 'createdAt'} direction={orderBy === 'createdAt' ? order : 'asc'} onClick={() => handleSort('createdAt')}>Created At</TableSortLabel>
               </TableCell>
               <TableCell sx={{ fontWeight: 700 }}>
+                <TableSortLabel active={orderBy === 'createdBy'} direction={orderBy === 'createdBy' ? order : 'asc'} onClick={() => handleSort('createdBy')}>Created By</TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>
                 <TableSortLabel active={orderBy === 'dueDate'} direction={orderBy === 'dueDate' ? order : 'asc'} onClick={() => handleSort('dueDate')}>Due Date</TableSortLabel>
               </TableCell>
               <TableCell align="right" sx={{ fontWeight: 700 }}>Actions</TableCell>
@@ -292,8 +312,14 @@ export default function WorkOrdersPage() {
                     <Typography variant="body2" color="text.secondary">{wo.asset?.name || '-'}</Typography>
                   </Stack>
                 </TableCell>
-                <TableCell><Typography variant="body2">{wo.assignee?.email?.split('@')[0] || '-'}</Typography></TableCell>
+                <TableCell><Typography variant="body2">{wo.assignee?.email?.split('@')[0] || wo.assignee?.name || '-'}</Typography></TableCell>
                 <TableCell><Typography variant="body2" color="text.secondary">{new Date(wo.createdAt).toLocaleDateString()} ({wo.progressDays}d)</Typography></TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <PersonOutline sx={{ fontSize: 16, color: 'text.secondary' }} />
+                    <Typography variant="body2">{wo.createdBy?.email?.split('@')[0] || wo.createdBy?.name || '-'}</Typography>
+                  </Stack>
+                </TableCell>
                 <TableCell><Typography variant="body2" color={wo.isOverdue? 'error' : 'text.secondary'} fontWeight={wo.isOverdue?700:400}>{wo.dueDate ? new Date(wo.dueDate).toLocaleDateString() : '-'}</Typography></TableCell>
     
                 <TableCell align="right">
@@ -304,7 +330,7 @@ export default function WorkOrdersPage() {
                     {role === 'TECHNICIAN' && wo.status === 'IN_PROGRESS' && (
                       <Button size="small" variant="contained" color="success" startIcon={<CheckCircleOutline />} onClick={() => updateStatus(wo.id, 'DONE')} sx={{ borderRadius: '8px', textTransform: 'none' }}>Finish</Button>
                     )}
-                    {role && ['ADMIN', 'SUPERVISOR'].includes(role) && (
+                    {role && ['ADMIN', 'SUPERVISOR','USER'].includes(role) && (
                       <IconButton size="small" sx={{ color: alpha('#f44336', 0.7), '&:hover': { bgcolor: alpha('#f44336', 0.1), color: '#f44336' } }} onClick={(e) => deleteWO(e, wo)}>
                         <DeleteOutline fontSize="small" />
                       </IconButton>

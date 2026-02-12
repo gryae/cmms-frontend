@@ -137,7 +137,7 @@ export default function AssetsPage() {
     } catch (err) { alert("Import failed!"); }
   };
 
-  const isActionAuthorized = ['ADMIN', 'SUPERVISOR'].includes(role);
+  const isActionAuthorized = ['ADMIN', 'SUPERVISOR','USER','TECHNICIAN'].includes(role);
 
   return (
     <Container maxWidth="xl" sx={{ mt: 3, pb: 6 }}>

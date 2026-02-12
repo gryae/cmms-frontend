@@ -17,6 +17,7 @@ import {
   VisibilityOff 
 } from '@mui/icons-material';
 import { useState } from 'react';
+import Image from 'next/image'; // Import ini
 import api from '../../lib/api';
 
 export default function LoginPage() {
@@ -24,7 +25,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Logic asli tetap dipertahankan
   const login = async () => {
     const res = await api.post('/auth/login', { email, password });
     localStorage.setItem('token', res.data.access_token);
@@ -38,7 +38,7 @@ export default function LoginPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'radial-gradient(circle at top left, #1e3a8a, #0f172a)', // Deep dark blue theme
+        background: 'radial-gradient(circle at top left, #1e3a8a, #0f172a)',
         px: 2,
       }}
     >
@@ -48,13 +48,25 @@ export default function LoginPage() {
           sx={{
             p: 4,
             borderRadius: 4,
-            bgcolor: 'rgba(255, 255, 255, 0.05)', // Efek Transparan
-            backdropFilter: 'blur(10px)', // Glassmorphism
+            bgcolor: 'rgba(255, 255, 255, 0.05)',
+            backdropFilter: 'blur(10px)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
           }}
         >
-          <Box sx={{ mb: 4, textAlign: 'center' }}>
+          <Box sx={{ mb: 2, textAlign: 'center' }}> {/* mb dikurangi dari 4 ke 2 */}
+  <Box sx={{ mb: 1, display: 'flex', justifyContent: 'center' }}>
+    <Image 
+      src="/LAPOR.png" 
+      alt="Logo LAPOR" 
+      width={280} // Dibikin agak lebar karena logo kamu tipe horizontal
+      height={200} 
+      priority 
+      style={{ objectFit: 'contain' }}
+    />
+  </Box>
+            {/* ------------------------- */}
+{/* 
             <Typography 
               variant="h4" 
               fontWeight="800" 
@@ -64,7 +76,7 @@ export default function LoginPage() {
             </Typography>
             <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', mt: 1 }}>
               Silakan masuk untuk mengelola dashboard Anda
-            </Typography>
+            </Typography> */}
           </Box>
 
           <Box component="form" noValidate>
@@ -148,14 +160,14 @@ export default function LoginPage() {
               Sign In
             </Button>
 
-            <Typography 
+            {/* <Typography 
               variant="caption" 
               display="block" 
               textAlign="center" 
               sx={{ mt: 3, color: 'rgba(255,255,255,0.4)' }}
             >
               © 2026 MaintINA. All rights reserved.
-            </Typography>
+            </Typography> */}
           </Box>
         </Paper>
       </Container>

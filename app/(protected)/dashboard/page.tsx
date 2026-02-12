@@ -36,7 +36,7 @@ type Summary = {
 
 type FeedItem = {
   id: string;
-  type: 'work_order_created' | 'comment';
+  type: 'work_order_created' | 'comment' | 'status_changed';
   message: string;
   timestamp: string;
   workOrderId: string;
@@ -56,6 +56,11 @@ export default function DashboardPage() {
         api.get('/dashboard/by-status'),
         api.get('/dashboard/by-priority'),
       ]);
+
+      const statusData = statusRes.data;
+      if (summaryRes.data.overdue > 0) {
+        statusData['OVERDUE'] = summaryRes.data.overdue;
+      }
       setSummary(summaryRes.data);
       setByStatus(statusRes.data);
       setByPriority(priorityRes.data);

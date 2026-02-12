@@ -6,28 +6,51 @@ import {
 } from '@mui/material';
 import {
   Dashboard, PrecisionManufacturing, Assignment, 
-  People, Logout, Engineering
+  People, Logout
 } from '@mui/icons-material';
 import { useRouter, usePathname } from 'next/navigation';
 import { getUserFromToken } from '../lib/api';
 import { useEffect, useState } from 'react';
+import Image from 'next/image'; // Import ini buat logo
+
+import { registerPush } from '@/lib/push';
+import api from '@/lib/api';
 
 const drawerWidth = 260;
+// Warna biru gear dari logo kamu
+const BRAND_BLUE = '#00A3E0'; 
 
 export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   
-  // Inisialisasi dengan null untuk menghindari mismatch hydration
-  const [user, setUser] = useState<{ email: string; role: string } | null>(null);
+  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
+  
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const userData = getUserFromToken();
+   
     if (userData) {
       setUser(userData);
     }
+
+
+    async function initPush() {
+    try {
+      const subscription = await registerPush(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!);
+
+      if (subscription) {
+        await api.post('/push/subscribe', { subscription });
+      }
+    } catch (error) {
+      console.error('Failed to register for push notifications:', error);
+    }
+  }
+
+    initPush();
+
   }, []);
 
   const menu = [
@@ -35,19 +58,19 @@ export default function Sidebar() {
       label: 'Dashboard',
       path: '/dashboard',
       icon: <Dashboard />,
-      roles: ['ADMIN', 'SUPERVISOR', 'TECHNICIAN'],
+      roles: ['ADMIN', 'SUPERVISOR', 'TECHNICIAN','USER'],
     },
     {
       label: 'Assets',
       path: '/assets',
       icon: <PrecisionManufacturing />,
-      roles: ['ADMIN', 'SUPERVISOR'],
+      roles: ['ADMIN', 'SUPERVISOR', 'TECHNICIAN','USER'],
     },
     {
       label: 'Work Orders',
       path: '/work-orders',
       icon: <Assignment />,
-      roles: ['ADMIN', 'SUPERVISOR', 'TECHNICIAN'],
+      roles: ['ADMIN', 'SUPERVISOR', 'TECHNICIAN','USER'],
     },
     {
       label: 'Users',
@@ -62,7 +85,6 @@ export default function Sidebar() {
     router.push('/login');
   };
 
-  // Cegah render apapun di server untuk sinkronisasi state client
   if (!mounted) return null;
 
   return (
@@ -74,26 +96,39 @@ export default function Sidebar() {
         [`& .MuiDrawer-paper`]: {
           width: drawerWidth,
           boxSizing: 'border-box',
-          bgcolor: '#0B0F19', // Dark Theme Professional
+          bgcolor: '#0B0F19', 
           borderRight: '1px solid rgba(255, 255, 255, 0.05)',
         },
       }}
     >
-      {/* BRAND LOGO */}
+      {/* BRAND LOGO SECTION */}
       <Toolbar sx={{ my: 2 }}>
         <Stack direction="row" alignItems="center" spacing={1.5}>
+          {/* Box penampung logo PNG */}
           <Box 
             sx={{ 
-              width: 35, height: 35, bgcolor: '#7C7CFF', 
-              borderRadius: 1.5, display: 'flex', 
-              alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 0 15px rgba(124, 124, 255, 0.4)'
+              width: 40, // Sedikit lebih besar agar logo PNG terlihat jelas
+              height: 40, 
+              bgcolor: 'rgba(255, 255, 255, 0.05)', // Background tipis saja
+              borderRadius: 1.5, 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              overflow: 'hidden', // Supaya gambar nggak keluar kotak
+              border: `1px solid ${alpha(BRAND_BLUE, 0.3)}`,
+              p: 0.5 // Padding biar logo nggak mepet ke pinggir kotak
             }}
           >
-            <Engineering sx={{ color: 'white' }} />
+            <Image 
+              src="/LAPOR.png" 
+              alt="Logo" 
+              width={30} 
+              height={30} 
+              style={{ objectFit: 'contain' }}
+            />
           </Box>
-          <Typography variant="h6" fontWeight={800} letterSpacing={1} color="white">
-            Mainta<span style={{ color: '#7C7CFF' }}>INA</span>
+          <Typography variant="h6" fontWeight={800} letterSpacing={0.5} color="white" sx={{ fontSize: '1.1rem' }}>
+            LAPOR<span style={{ color: BRAND_BLUE }}>SKKKJ</span>
           </Typography>
         </Stack>
       </Toolbar>
@@ -113,19 +148,18 @@ export default function Sidebar() {
                     borderRadius: 2,
                     mb: 0.5,
                     py: 1.2,
-                    transition: 'all 0.2s ease',
-                    bgcolor: isActive ? alpha('#7C7CFF', 0.1) : 'transparent',
-                    color: isActive ? '#7C7CFF' : alpha('#fff', 0.6),
+                    bgcolor: isActive ? alpha(BRAND_BLUE, 0.1) : 'transparent',
+                    color: isActive ? BRAND_BLUE : alpha('#fff', 0.6),
                     '&:hover': {
-                      bgcolor: alpha('#7C7CFF', 0.05),
-                      color: '#7C7CFF',
-                      '& .MuiListItemIcon-root': { color: '#7C7CFF' }
+                      bgcolor: alpha(BRAND_BLUE, 0.05),
+                      color: BRAND_BLUE,
+                      '& .MuiListItemIcon-root': { color: BRAND_BLUE }
                     },
                   }}
                 >
                   <ListItemIcon sx={{ 
                     minWidth: 40, 
-                    color: isActive ? '#7C7CFF' : 'inherit',
+                    color: isActive ? BRAND_BLUE : 'inherit',
                   }}>
                     {item.icon}
                   </ListItemIcon>
@@ -154,15 +188,15 @@ export default function Sidebar() {
             }}>
               <Avatar sx={{ 
                 width: 32, height: 32, 
-                bgcolor: '#7C7CFF', 
+                bgcolor: BRAND_BLUE, // Avatar pakai warna biru logo
                 fontSize: '0.8rem',
                 fontWeight: 700 
               }}>
-                {user.email ? user.email[0].toUpperCase() : '?'}
+                {user.name ? user.name[0].toUpperCase() : '?'}
               </Avatar>
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="body2" fontWeight={700} noWrap color="white">
-                  {user.email ? user.email.split('@')[0] : 'User'}
+                  {user.name ? user.name.split('@')[0] : 'User'}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: -0.5 }}>
                   {user.role}

@@ -4,8 +4,8 @@ export const theme = createTheme({
   palette: {
     mode: 'dark', // Tetap dark mode tapi "cerah" (Deep Slate)
     primary: {
-      main: '#3b82f6', // Electric Blue (Industrial Clean)
-      dark: '#1d4ed8',
+      main: '#0062fe', // Electric Blue (Industrial Clean)
+      dark: '#0044ff',
     },
     secondary: {
       main: '#f59e0b', // Safety Orange / Amber (Aksen alat berat/perkakas)

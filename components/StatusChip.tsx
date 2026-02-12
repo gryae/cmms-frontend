@@ -8,7 +8,6 @@ export default function StatusChip({ status }: { status: string }) {
     ASSIGNED: 'info',
     IN_PROGRESS: 'primary',
     DONE: 'success',
-    CLOSED: 'default',
   };
 
   return (

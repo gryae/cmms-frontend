@@ -6,7 +6,7 @@ import api, { getUserFromToken } from '../../../../lib/api';
 import {
   Container, Typography, Paper, Box, Divider, TextField, MenuItem,
   Button, Grid, Stack, IconButton, Avatar, Card, CardContent, alpha,
-  Tooltip,Dialog,
+  Tooltip, Dialog,
 } from '@mui/material';
 import {
   Edit, Save, Cancel, CloudUpload, Delete, Send,
@@ -23,6 +23,7 @@ export default function WorkOrderDetailPage() {
   const [wo, setWo] = useState<any>(null);
   const [status, setStatus] = useState('');
   const [role, setRole] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState<any>({ title: '', description: '', priority: '', assetId: '', assignedTo: '', dueDate: '' });
   const [spareParts, setSpareParts] = useState<any[]>([]);
@@ -35,28 +36,29 @@ export default function WorkOrderDetailPage() {
   const [comments, setComments] = useState<any[]>([]);
   const [commentText, setCommentText] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
-const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
 
   // ================= INIT & LOAD =================
- useEffect(() => {
-  const user = getUserFromToken();
-  const userRole = user?.role ?? null;
-  setRole(userRole);
+  useEffect(() => {
+    const user = getUserFromToken();
+    const userRole = user?.role ?? null;
+    setUserId(user?.sub ?? null);
+    setRole(userRole);
 
-  if (id) {
-    loadWO();
-    loadParts();
-    loadAttachments();
-    loadComments();
-    api.get('/spare-parts').then(res => setSpareParts(res.data));
+    if (id) {
+      loadWO();
+      loadParts();
+      loadAttachments();
+      loadComments();
+      api.get('/spare-parts').then(res => setSpareParts(res.data));
 
-    // 🔐 HANYA ADMIN & SUPERVISOR
-    if (userRole === 'ADMIN' || userRole === 'SUPERVISOR') {
-      loadTechnicians();
+      // 🔐 HANYA ADMIN & SUPERVISOR
+      if (userRole === 'ADMIN' || userRole === 'SUPERVISOR' || userRole === 'USER') {
+        loadTechnicians();
+      }
     }
-  }
-}, [id]);
+  }, [id]);
 
 
   const loadComments = async () => {
@@ -96,6 +98,35 @@ const [previewImage, setPreviewImage] = useState<string | null>(null);
     setTechnicians(res.data.filter((u: any) => u.role === 'TECHNICIAN'));
   };
 
+
+  //PERMISSION HELPER
+  const canUpdateStatus = () => {
+    if (!wo || !role || !userId) return false;
+
+    // ADMIN bisa update status apa saja
+    if (role === 'ADMIN') return true;
+
+    if (role === 'TECHNICIAN') {
+      return wo.assignedTo === userId;
+    }
+
+    if (role === 'SUPERVISOR' || role === 'USER') {
+      return wo.createdBy === userId || wo.createdBy?.id === userId;
+    }
+
+    return false;
+  };
+
+
+  const canEditWO = () => {
+    if (!wo || !role || !userId) return false;
+    if (role === 'ADMIN') return true;
+    if (role === 'SUPERVISOR' || role === 'USER') {
+      return wo.createdBy === userId || wo.createdBy?.id === userId;
+    }
+    return false;
+  };
+
   // ================= HANDLERS =================
   const postStatusComment = async (newStatus: string) => {
     const statusLabel = newStatus.replace('_', ' ');
@@ -132,52 +163,56 @@ const [previewImage, setPreviewImage] = useState<string | null>(null);
   const uploadAttachment = async () => {
     if (!file) return;
     try {
-    const formData = new FormData();
-    formData.append('file', file);
-    await api.post(`/work-orders/${id}/attachments`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-    setFile(null); loadAttachments();
+      const formData = new FormData();
+      formData.append('file', file);
+      await api.post(`/work-orders/${id}/attachments`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setFile(null); loadAttachments();
     } catch (err: any) {
       const message = err?.response?.data?.message || 'Failed to upload attachment.';
-      if(message.includes('File too large') || message.includes('LIMIT_FILE_SIZE')) {
+      if (message.includes('File too large') || message.includes('LIMIT_FILE_SIZE')) {
         alert('Ukuran file terlalu besar. Maksimal 1MB.');
       } else {
         alert(message);
+      }
     }
-  }
   };
 
   const openPreview = (url: string) => {
-  setPreviewImage(url);
-  setPreviewOpen(true);
-};
+    setPreviewImage(url);
+    setPreviewOpen(true);
+  };
 
-const closePreview = () => {
-  setPreviewOpen(false);
-  setPreviewImage(null);
-};
+  const closePreview = () => {
+    setPreviewOpen(false);
+    setPreviewImage(null);
+  };
 
 
   const StatusCard = ({ label, value, color }: any) => {
     const active = status === value;
+    const allowed = canUpdateStatus();
     return (
-      <Box
-        onClick={async () => {
-          if (active) return;
-          await api.patch(`/work-orders/${id}/status`, { status: value });
-          await postStatusComment(value);
-          setStatus(value);
-          loadWO();
-        }}
-        sx={{
-          flex: 1, p: 2, cursor: 'pointer', borderRadius: 2, textAlign: 'center',
-          border: active ? `2px solid ${color}` : '1px solid rgba(255,255,255,0.1)',
-          bgcolor: active ? alpha(color, 0.1) : 'background.paper',
-          transition: '0.2s',
-          '&:hover': { bgcolor: alpha(color, 0.2) },
-        }}
-      >
-        <Typography variant="caption" sx={{ fontWeight: 800, color: active ? color : 'text.secondary' }}>{label}</Typography>
-      </Box>
+      <Tooltip title={allowed ? 'You can change status' : 'You do not have permission to change status'}>
+        <Box
+          onClick={async () => {
+            if (active || !allowed) return;
+            await api.patch(`/work-orders/${id}/status`, { status: value });
+            await postStatusComment(value);
+            setStatus(value);
+            loadWO();
+          }}
+          sx={{
+            flex: 1, p: 2, cursor: allowed ? 'pointer' : 'not-allowed', borderRadius: 2, textAlign: 'center',
+            border: active ? `2px solid ${color}` : '1px solid rgba(255,255,255,0.1)',
+            bgcolor: active ? alpha(color, 0.1) : 'background.paper',
+            transition: '0.2s',
+            opacity: allowed ? 1 : 0.6,
+            '&:hover': { bgcolor: allowed ? alpha(color, 0.2) : 'background.paper' },
+          }}
+        >
+          <Typography variant="caption" sx={{ fontWeight: 800, color: active ? color : 'text.secondary' }}>{label}</Typography>
+        </Box>
+      </Tooltip>
     );
   };
 
@@ -189,39 +224,39 @@ const closePreview = () => {
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <Box>
           <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
-<Stack direction="row" spacing={1} alignItems="center">
-  <StatusChip status={wo.status} />
+            <Stack direction="row" spacing={1} alignItems="center">
+              <StatusChip status={wo.status} />
 
-  {wo.isOverdue && (
-    <Typography
-      variant="caption"
-      sx={{
-        bgcolor: alpha('#f44336', 0.15),
-        color: '#f44336',
-        px: 1,
-        py: 0.5,
-        borderRadius: 1,
-        fontWeight: 800,
-      }}
-    >
-      OVERDUE {wo.overdueDays} hari
-    </Typography>
-  )}
+              {wo.isOverdue && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    bgcolor: alpha('#f44336', 0.15),
+                    color: '#f44336',
+                    px: 1,
+                    py: 0.5,
+                    borderRadius: 1,
+                    fontWeight: 800,
+                  }}
+                >
+                  OVERDUE {wo.overdueDays} hari
+                </Typography>
+              )}
 
-  <Typography
-    variant="caption"
-    sx={{
-      bgcolor: alpha('#7C7CFF', 0.15),
-      px: 1,
-      py: 0.5,
-      borderRadius: 1,
-      fontWeight: 700,
-    }}
-  >
-    Progress: {wo.progressDays} hari
-  </Typography>
-</Stack>
-            
+              <Typography
+                variant="caption"
+                sx={{
+                  bgcolor: alpha('#7C7CFF', 0.15),
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 1,
+                  fontWeight: 700,
+                }}
+              >
+                Progress: {wo.progressDays} hari
+              </Typography>
+            </Stack>
+
             <Typography variant="caption" sx={{ bgcolor: alpha('#7C7CFF', 0.1), px: 1, py: 0.5, borderRadius: 1, color: '#7C7CFF', fontWeight: 'bold' }}>
               #{wo.id.slice(-6).toUpperCase()}
             </Typography>
@@ -233,15 +268,22 @@ const closePreview = () => {
           )}
         </Box>
 
-        {role && ['ADMIN', 'SUPERVISOR'].includes(role) && (
-          <Button
-            variant={editMode ? "contained" : "outlined"}
-            startIcon={editMode ? <Save /> : <Edit />}
-            onClick={() => { if (editMode) saveEdit(); setEditMode(!editMode); }}
-            color={editMode ? "success" : "primary"}
-          >
-            {editMode ? 'Save Changes' : 'Edit WO'}
-          </Button>
+        {role && ['ADMIN', 'SUPERVISOR', 'USER'].includes(role) && (
+          <Tooltip
+            title={!canEditWO() ? 'You do not have permission to edit this work order' : 'Edit this work order'}>
+            <span>
+              <Button
+                disabled={!canEditWO()}
+                variant={editMode ? "contained" : "outlined"}
+                startIcon={editMode ? <Save /> : <Edit />}
+                onClick={() => { if (editMode) saveEdit(); setEditMode(!editMode); }}
+                color={editMode ? "success" : "primary"}
+              >
+                {editMode ? 'Save Changes' : 'Edit WO'}
+              </Button>
+            </span>
+
+          </Tooltip>
         )}
       </Box>
 
@@ -256,49 +298,49 @@ const closePreview = () => {
               </Typography>
               <Grid container spacing={3}>
                 <Grid item xs={12}>
-  <Typography variant="caption" color="text.secondary">
-    Asset
-  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Asset
+                  </Typography>
 
-  <Stack
-    direction="row"
-    spacing={2}
-    alignItems="center"
-    sx={{
-      mt: 0.5,
-      p: 1.5,
-      borderRadius: 2,
-      bgcolor: alpha('#7C7CFF', 0.05),
-      border: '1px solid rgba(255,255,255,0.08)',
-      cursor: 'pointer',
-      '&:hover': {
-        bgcolor: alpha('#7C7CFF', 0.1),
-      },
-    }}
-    onClick={() => router.push(`/assets/${wo.asset?.id}`)}
-  >
-    <Avatar
-      variant="rounded"
-      sx={{
-        bgcolor: alpha('#7C7CFF', 0.15),
-        color: '#7C7CFF',
-      }}
-    >
-      <BuildCircle />
-    </Avatar>
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    alignItems="center"
+                    sx={{
+                      mt: 0.5,
+                      p: 1.5,
+                      borderRadius: 2,
+                      bgcolor: alpha('#7C7CFF', 0.05),
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      cursor: 'pointer',
+                      '&:hover': {
+                        bgcolor: alpha('#7C7CFF', 0.1),
+                      },
+                    }}
+                    onClick={() => router.push(`/assets/${wo.asset?.id}`)}
+                  >
+                    <Avatar
+                      variant="rounded"
+                      sx={{
+                        bgcolor: alpha('#7C7CFF', 0.15),
+                        color: '#7C7CFF',
+                      }}
+                    >
+                      <BuildCircle />
+                    </Avatar>
 
-    <Box>
-      <Typography fontWeight={700}>
-        {wo.asset?.name || '-'}
-      </Typography>
-      <Typography variant="caption" color="text.secondary">
-        {wo.asset?.code || 'No asset code'}
-      </Typography>
-    </Box>
-  </Stack>
-</Grid>
+                    <Box>
+                      <Typography fontWeight={700}>
+                        {wo.asset?.name || '-'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {wo.asset?.code || 'No asset code'}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={4}>
                   <Typography variant="caption" color="text.secondary">Priority</Typography>
                   {editMode ? (
                     <TextField select fullWidth size="small" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
@@ -308,7 +350,7 @@ const closePreview = () => {
                     <Typography fontWeight={600}>{wo.priority}</Typography>
                   )}
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12} sm={4}>
                   <Typography variant="caption" color="text.secondary">Due Date</Typography>
                   {editMode ? (
                     <TextField type="date" fullWidth size="small" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
@@ -316,6 +358,11 @@ const closePreview = () => {
                     <Typography fontWeight={600}>{wo.dueDate ? new Date(wo.dueDate).toLocaleDateString() : '-'}</Typography>
                   )}
                 </Grid>
+                <Grid item xs={12} sm={4}>
+                  <Typography variant="caption" color="text.secondary">Created By</Typography>
+                  <Typography fontWeight={600}>{wo.createdBy?.email || wo.createdBy?.name || '-'}</Typography>
+                </Grid>
+                
                 <Grid item xs={12}>
                   <Typography variant="caption" color="text.secondary">Description</Typography>
                   {editMode ? (
@@ -324,6 +371,8 @@ const closePreview = () => {
                     <Typography>{wo.description || 'No description provided.'}</Typography>
                   )}
                 </Grid>
+
+
               </Grid>
             </Paper>
 
@@ -336,28 +385,6 @@ const closePreview = () => {
                 <StatusCard label="DONE" value="DONE" color="#4caf50" />
               </Stack>
             </Paper>
-
-            {/* SPARE PARTS */}
-            {/* <Paper sx={{ p: 3, borderRadius: 3 }}>
-              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <BuildCircle color="primary" /> Spare Parts
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-                <TextField select label="Part" size="small" fullWidth value={selectedPart} onChange={(e) => setSelectedPart(e.target.value)}>
-                  {spareParts.map(p => <MenuItem key={p.id} value={p.id}>{p.name} (Stock: {p.stock})</MenuItem>)}
-                </TextField>
-                <TextField type="number" label="Qty" size="small" sx={{ width: 80 }} value={qty} onChange={(e) => setQty(Number(e.target.value))} />
-                <Button variant="contained" onClick={addPart}>Add</Button>
-              </Box>
-              <Stack spacing={1}>
-                {usedParts.map(p => (
-                  <Box key={p.id} sx={{ display: 'flex', justifyContent: 'space-between', p: 1.5, borderRadius: 2, bgcolor: alpha('#fff', 0.03) }}>
-                    <Typography variant="body2">{p.sparePart.name} <b>× {p.quantity}</b></Typography>
-                    <IconButton size="small" color="error" onClick={() => removePart(p.id)}><Delete fontSize="small" /></IconButton>
-                  </Box>
-                ))}
-              </Stack>
-            </Paper> */}
           </Stack>
         </Grid>
 
@@ -394,68 +421,67 @@ const closePreview = () => {
                 {attachments.map(a => (
                   <Grid item xs={4} key={a.id}>
                     <Tooltip title={a.fileName}>
-<Box
-  component="img"
-  src={a.url}
-  onClick={() => openPreview(a.url)}
-  sx={{
-    width: '100%',
-    height: 60,
-    borderRadius: 1,
-    objectFit: 'cover',
-    border: '1px solid rgba(255,255,255,0.1)',
-    cursor: 'zoom-in',
-    transition: '0.2s',
-    '&:hover': {
-      transform: 'scale(1.05)',
-    },
-  }}
-/>
+                      <Box
+                        component="img"
+                        src={a.url}
+                        onClick={() => openPreview(a.url)}
+                        sx={{
+                          width: '100%',
+                          height: 60,
+                          borderRadius: 1,
+                          objectFit: 'cover',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          cursor: 'zoom-in',
+                          transition: '0.2s',
+                          '&:hover': {
+                            transform: 'scale(1.05)',
+                          },
+                        }}
+                      />
 
                     </Tooltip>
-                    <Dialog
-  open={previewOpen}
-  onClose={closePreview}
-  maxWidth="lg"
->
-  <Box
-    sx={{
-      position: 'relative',
-      bgcolor: 'black',
-    }}
-  >
-    <IconButton
-      onClick={closePreview}
-      sx={{
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        color: 'white',
-        zIndex: 10,
-      }}
-    >
-      <Cancel />
-    </IconButton>
-
-    {previewImage && (
-      <Box
-        component="img"
-        src={previewImage}
-        sx={{
-          maxWidth: '90vw',
-          maxHeight: '90vh',
-          objectFit: 'contain',
-          display: 'block',
-        }}
-      />
-    )}
-  </Box>
-</Dialog>
-
                   </Grid>
                 ))}
               </Grid>
-              
+              <Dialog
+                open={previewOpen}
+                onClose={closePreview}
+                maxWidth="lg"
+              >
+                <Box
+                  sx={{
+                    position: 'relative',
+                    bgcolor: 'black',
+                  }}
+                >
+                  <IconButton
+                    onClick={closePreview}
+                    sx={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
+                      color: 'white',
+                      zIndex: 10,
+                    }}
+                  >
+                    <Cancel />
+                  </IconButton>
+
+                  {previewImage && (
+                    <Box
+                      component="img"
+                      src={previewImage}
+                      sx={{
+                        maxWidth: '90vw',
+                        maxHeight: '90vh',
+                        objectFit: 'contain',
+                        display: 'block',
+                      }}
+                    />
+                  )}
+                </Box>
+              </Dialog>
+
             </Paper>
 
             {/* COMMENTS SECTION */}
