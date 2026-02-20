@@ -13,8 +13,8 @@ import {
   Construction, Person, ArrowBack, Save
 } from '@mui/icons-material';
 
-type Asset = { id: string; name: string };
-type Technician = { id: string; email: string };
+type Asset = { id: string; name: string; location:string };
+type Technician = { id: string; email: string ,name:string};
 
 export default function NewWorkOrderPage() {
   const router = useRouter();
@@ -181,7 +181,7 @@ export default function NewWorkOrderPage() {
             >
               <MenuItem value=""><em>None / Unlinked</em></MenuItem>
               {assets.map((a) => (
-                <MenuItem key={a.id} value={a.id}>{a.name}</MenuItem>
+                <MenuItem key={a.id} value={a.id}>{a.name + " - " + a.location}</MenuItem>
               ))}
             </TextField>
           </Grid>
@@ -203,7 +203,7 @@ export default function NewWorkOrderPage() {
             >
               <MenuItem value=""><em>Leave Unassigned</em></MenuItem>
               {techs.map((t) => (
-                <MenuItem key={t.id} value={t.id}>{t.email}</MenuItem>
+                <MenuItem key={t.id} value={t.id}>{t.name + " - " + t.email}</MenuItem>
               ))}
             </TextField>
           </Grid>

@@ -9,7 +9,7 @@ import {
 } from '@mui/material';
 import {
   DeleteOutline, PersonAdd, Security, MailOutline, 
-  AdminPanelSettings, SupervisorAccount, Engineering
+  AdminPanelSettings, SupervisorAccount, Engineering, Edit
 } from '@mui/icons-material';
 
 const ROLES = ['ADMIN', 'TECHNICIAN','USER'];
@@ -28,7 +28,7 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ email: '', password: '', role: 'TECHNICIAN', name:''});
-
+const [editingUser, setEditingUser] = useState<any | null>(null);
   const load = async () => {
     try {
       const res = await api.get('/users');
@@ -66,17 +66,34 @@ export default function UserManagementPage() {
     }
   };
 
-  const createUser = async () => {
-    if (!form.email || !form.password) return alert('Fill all fields');
-    try {
+const saveUser = async () => {
+  try {
+    if (editingUser) {
+      await api.patch(`/users/${editingUser.id}`, form);
+    } else {
       await api.post('/users', form);
-      setOpen(false);
-      setForm({ email: '', password: '', role: 'TECHNICIAN',name:'' });
-      load();
-    } catch (e: any) {
-      alert(e?.response?.data?.message || 'Failed to create user');
     }
-  };
+
+    setOpen(false);
+    setEditingUser(null);
+    setForm({ email: '', password: '', role: 'TECHNICIAN', name: '' });
+    load();
+  } catch (e: any) {
+    alert(e?.response?.data?.message || 'Failed to save user');
+  }
+};
+
+
+  const openEdit = (user: any) => {
+  setForm({
+    email: user.email,
+    name: user.name || '',
+    password: '',
+    role: user.role,
+  });
+  setEditingUser(user);
+  setOpen(true);
+};
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -165,6 +182,15 @@ export default function UserManagementPage() {
                     >
                       <DeleteOutline />
                     </IconButton>
+                    <IconButton
+  color="primary"
+  onClick={() => openEdit(u)}
+  sx={{ mr: 1 }}
+>
+  <Edit />
+</IconButton>
+
+
                   </span>
                 </Tooltip>
               </Box>
@@ -176,8 +202,9 @@ export default function UserManagementPage() {
 
       {/* CREATE USER MODAL */}
       <Dialog open={open} onClose={() => setOpen(false)} PaperProps={{ sx: { borderRadius: 3, p: 1, width: '100%', maxWidth: 400 } }}>
-        <DialogTitle sx={{ fontWeight: 800 }}>Create New Account</DialogTitle>
-        <DialogContent>
+<DialogTitle sx={{ fontWeight: 800 }}>
+  {editingUser ? 'Edit User' : 'Create New Account'}
+</DialogTitle>        <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Register a new team member and assign their role.
           </Typography>
@@ -219,8 +246,9 @@ export default function UserManagementPage() {
         </DialogContent>
         <DialogActions sx={{ p: 3 }}>
           <Button onClick={() => setOpen(false)} sx={{ color: 'text.secondary' }}>Cancel</Button>
-          <Button variant="contained" onClick={createUser} sx={{ borderRadius: 2, px: 4 }}>Create User</Button>
-        </DialogActions>
+<Button variant="contained" onClick={saveUser}>
+  {editingUser ? 'Save Changes' : 'Create User'}
+</Button>        </DialogActions>
       </Dialog>
     </Container>
   );

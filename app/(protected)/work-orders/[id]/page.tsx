@@ -397,12 +397,12 @@ export default function WorkOrderDetailPage() {
               {editMode ? (
                 <TextField select fullWidth size="small" value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}>
                   <MenuItem value="">Unassigned</MenuItem>
-                  {technicians.map(t => <MenuItem key={t.id} value={t.id}>{t.email}</MenuItem>)}
+                  {technicians.map(t => <MenuItem key={t.id} value={t.id}>{t.name + " - " + t.email}</MenuItem>)}
                 </TextField>
               ) : (
                 <Stack direction="row" spacing={2} alignItems="center">
-                  <Avatar sx={{ bgcolor: 'primary.main' }}>{wo.assignee?.email?.[0].toUpperCase() || '?'}</Avatar>
-                  <Typography>{wo.assignee?.email || 'Not Assigned'}</Typography>
+                  <Avatar sx={{ bgcolor: 'primary.main' }}>{wo.assignee?.name?.[0].toUpperCase() || '?'}</Avatar>
+                  <Typography>{wo.assignee?.name || 'Not Assigned'}</Typography>
                 </Stack>
               )}
             </Paper>
