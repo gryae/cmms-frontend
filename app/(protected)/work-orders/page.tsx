@@ -11,8 +11,10 @@ import {
 import {
   DeleteOutline, Add, DashboardOutlined, CalendarMonthOutlined,
   PlayArrowOutlined, CheckCircleOutline, AssignmentOutlined,
-  Search, PersonOutline, RestartAlt
+  Search, PersonOutline, RestartAlt,
 } from '@mui/icons-material';
+
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 
 import StatusChip from '../../../components/StatusChip';
 
@@ -143,6 +145,46 @@ export default function WorkOrdersPage() {
     await api.delete(`/work-orders/${wo.id}`);
     loadData();
   };
+
+const sendWhatsApp = (wo: any) => {
+  const { assignee, asset, id, title, dueDate } = wo;
+  const phone = assignee?.phoneNumber;
+
+  if (!phone) {
+    alert("Technician phone number not available");
+    return;
+  }
+
+  // Format tanggal lebih rapi
+  const formattedDate = dueDate 
+    ? new Date(dueDate).toLocaleDateString('id-ID', { 
+        day: '2-digit', 
+        month: 'long', 
+        year: 'numeric' 
+      }) 
+    : '-';
+
+  const message = [
+    `Halo Rekan *${assignee?.name || assignee?.email}*`,
+    '',
+    `Mohon bantuannya untuk pengecekan *Work Order #${id}*`,
+    '',
+    `*Detail WO:*`,
+    ` Nama WO: ${title}`,
+    ` Branch: ${asset?.branch || '-'}`,
+    ` Lokasi: ${asset?.location || '-'}`,
+    ` Asset: ${asset?.name || '-'}`,
+    ` Deadline: ${formattedDate}`,
+    '',
+    `Terima kasih!`,
+
+    `Link WO: ${window.location.origin}/work-orders/${id}`
+  ].join('\n');
+
+  const url = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+  
+  window.open(url, "_blank");
+};
 
   return (
     <Container maxWidth="xl" sx={{ mt: 3, pb: 6 }}>
@@ -330,11 +372,41 @@ export default function WorkOrdersPage() {
                     {role === 'TECHNICIAN' && wo.status === 'IN_PROGRESS' && (
                       <Button size="small" variant="contained" color="success" startIcon={<CheckCircleOutline />} onClick={() => updateStatus(wo.id, 'DONE')} sx={{ borderRadius: '8px', textTransform: 'none' }}>Finish</Button>
                     )}
-                    {role && ['ADMIN', 'SUPERVISOR','USER'].includes(role) && (
-                      <IconButton size="small" sx={{ color: alpha('#f44336', 0.7), '&:hover': { bgcolor: alpha('#f44336', 0.1), color: '#f44336' } }} onClick={(e) => deleteWO(e, wo)}>
-                        <DeleteOutline fontSize="small" />
-                      </IconButton>
-                    )}
+{wo.assignee?.phoneNumber && (
+  <Tooltip title="Send WhatsApp">
+    <IconButton
+      size="small"
+      sx={{
+        color: '#25D366',
+        '&:hover': {
+          bgcolor: alpha('#25D366', 0.1),
+          color: '#25D366'
+        }
+      }}
+      onClick={() => sendWhatsApp(wo)}
+    >
+      <WhatsAppIcon fontSize="small" />
+    </IconButton>
+  </Tooltip>
+)}
+
+{role && ['ADMIN', 'SUPERVISOR','USER'].includes(role) && (
+  <Tooltip title="Delete Work Order">
+    <IconButton
+      size="small"
+      sx={{
+        color: alpha('#f44336', 0.7),
+        '&:hover': {
+          bgcolor: alpha('#f44336', 0.1),
+          color: '#f44336'
+        }
+      }}
+      onClick={(e) => deleteWO(e, wo)}
+    >
+      <DeleteOutline fontSize="small" />
+    </IconButton>
+  </Tooltip>
+)}
                   </Box>
                 </TableCell>
               </TableRow>

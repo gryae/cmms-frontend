@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../../../lib/api';
+import { Autocomplete } from '@mui/material';
 
 import {
   Container, Typography, Paper, TextField, MenuItem,
@@ -164,7 +165,7 @@ export default function NewWorkOrderPage() {
             />
           </Grid>
 
-          <Grid item xs={12} sm={6}>
+          {/* <Grid item xs={12} sm={6}>
             <TextField
               select
               fullWidth
@@ -184,7 +185,36 @@ export default function NewWorkOrderPage() {
                 <MenuItem key={a.id} value={a.id}>{a.name + " - " + a.location}</MenuItem>
               ))}
             </TextField>
-          </Grid>
+          </Grid> */}
+
+          <Grid item xs={12} sm={6}>
+  <Autocomplete
+    fullWidth
+    options={assets}
+    getOptionLabel={(a) => a.name + " - " + a.location}
+    value={assets.find((a) => a.id === assetId) || null}
+    onChange={(event, newValue) => {
+      setAssetId(newValue?.id || "");
+    }}
+    renderInput={(params) => (
+      <TextField
+        {...params}
+        label="Target Asset"
+        InputProps={{
+          ...params.InputProps,
+          startAdornment: (
+            <>
+              <InputAdornment position="start">
+                <Construction fontSize="small" />
+              </InputAdornment>
+              {params.InputProps.startAdornment}
+            </>
+          ),
+        }}
+      />
+    )}
+  />
+</Grid>
 
           <Grid item xs={12} sm={6}>
             <TextField

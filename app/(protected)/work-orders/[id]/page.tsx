@@ -12,6 +12,7 @@ import {
   Edit, Save, Cancel, CloudUpload, Delete, Send,
   BuildCircle, Schedule, Person, Description, History
 } from '@mui/icons-material';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 
 import StatusChip from '../../../../components/StatusChip';
 
@@ -187,6 +188,46 @@ export default function WorkOrderDetailPage() {
     setPreviewImage(null);
   };
 
+
+  const sendWhatsApp = (wo: any) => {
+  const { assignee, asset, id, title, dueDate } = wo;
+  const phone = assignee?.phoneNumber;
+
+  if (!phone) {
+    alert("Technician phone number not available");
+    return;
+  }
+
+  // Format tanggal lebih rapi
+  const formattedDate = dueDate 
+    ? new Date(dueDate).toLocaleDateString('id-ID', { 
+        day: '2-digit', 
+        month: 'long', 
+        year: 'numeric' 
+      }) 
+    : '-';
+
+  const message = [
+    `Halo Rekan *${assignee?.name || assignee?.email}*`,
+    '',
+    `Mohon bantuannya untuk pengecekan *Work Order #${id}*`,
+    '',
+    `*Detail WO:*`,
+    ` Nama WO: ${title}`,
+    ` Branch: ${asset?.branch || '-'}`,
+    ` Lokasi: ${asset?.location || '-'}`,
+    ` Asset: ${asset?.name || '-'}`,
+    ` Deadline: ${formattedDate}`,
+    '',
+    `Terima kasih!`,
+
+    `Link WO: ${window.location.origin}/work-orders/${id}`
+  ].join('\n');
+
+  const url = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+  
+  window.open(url, "_blank");
+};
 
   const StatusCard = ({ label, value, color }: any) => {
     const active = status === value;
@@ -400,10 +441,38 @@ export default function WorkOrderDetailPage() {
                   {technicians.map(t => <MenuItem key={t.id} value={t.id}>{t.name + " - " + t.email}</MenuItem>)}
                 </TextField>
               ) : (
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Avatar sx={{ bgcolor: 'primary.main' }}>{wo.assignee?.name?.[0].toUpperCase() || '?'}</Avatar>
-                  <Typography>{wo.assignee?.name || 'Not Assigned'}</Typography>
-                </Stack>
+<Stack direction="row" spacing={2} alignItems="center">
+  <Avatar sx={{ bgcolor: 'primary.main' }}>
+    {wo.assignee?.name?.[0]?.toUpperCase() || '?'}
+  </Avatar>
+
+  <Box sx={{ flexGrow: 1 }}>
+    <Typography fontWeight={600}>
+      {wo.assignee?.name || 'Not Assigned'}
+    </Typography>
+    <Typography variant="caption" color="text.secondary">
+      {wo.assignee?.email || ''}
+    </Typography>
+  </Box>
+
+  {wo.assignee?.phoneNumber && (
+    <Tooltip title="Send WhatsApp">
+      <IconButton
+        size="small"
+        sx={{
+          color: '#25D366',
+          '&:hover': {
+            bgcolor: alpha('#25D366', 0.1),
+            color: '#25D366'
+          }
+        }}
+        onClick={() => sendWhatsApp(wo)}
+      >
+        <WhatsAppIcon fontSize="small" />
+      </IconButton>
+    </Tooltip>
+  )}
+</Stack>
               )}
             </Paper>
 

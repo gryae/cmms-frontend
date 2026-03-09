@@ -130,8 +130,8 @@ export default function AssetsPage() {
       const res = await api.post('/assets/import/csv', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      const { uploaded, skipped } = res.data;
-      alert(`✅ Uploaded: ${uploaded}\n⚠️ Skipped: ${skipped}`);
+      const { created, skipped } = res.data;
+      alert(`✅ Uploaded: ${created}\n⚠️ Skipped: ${skipped}`);
       setFile(null);
       loadAssets();
     } catch (err) { alert("Import failed!"); }

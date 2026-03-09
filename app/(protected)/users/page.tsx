@@ -27,7 +27,7 @@ const RoleIcon = ({ role }: { role: string }) => {
 export default function UserManagementPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ email: '', password: '', role: 'TECHNICIAN', name:''});
+  const [form, setForm] = useState({ email: '', password: '', role: 'TECHNICIAN', name:'', phoneNumber:'' });
 const [editingUser, setEditingUser] = useState<any | null>(null);
   const load = async () => {
     try {
@@ -76,9 +76,9 @@ const saveUser = async () => {
 
     setOpen(false);
     setEditingUser(null);
-    setForm({ email: '', password: '', role: 'TECHNICIAN', name: '' });
+    setForm({ email: '', password: '', role: 'TECHNICIAN', name: '' , phoneNumber: ''});
     load();
-  } catch (e: any) {
+  } catch (e: any) {    
     alert(e?.response?.data?.message || 'Failed to save user');
   }
 };
@@ -90,6 +90,7 @@ const saveUser = async () => {
     name: user.name || '',
     password: '',
     role: user.role,
+    phoneNumber: user.phoneNumber || '',
   });
   setEditingUser(user);
   setOpen(true);
@@ -103,12 +104,27 @@ const saveUser = async () => {
           <Typography variant="h4" fontWeight={800}>User Management</Typography>
           <Typography variant="body2" color="text.secondary"> Manage access levels and system permissions </Typography>
         </Box>
-        <Button
+        {/* <Button
           variant="contained"
           startIcon={<PersonAdd />}
           onClick={() => setOpen(true)}
           sx={{ borderRadius: 2, px: 3, py: 1, fontWeight: 600 }}
-        >
+        > */}
+        <Button
+  variant="contained"
+  startIcon={<PersonAdd />}
+  onClick={() => {
+    setEditingUser(null);
+    setForm({
+      email: '',
+      password: '',
+      role: 'TECHNICIAN',
+      name: '',
+      phoneNumber: ''
+    });
+    setOpen(true);
+  }}
+>
           Add New User
         </Button>
       </Box>
@@ -222,6 +238,14 @@ const saveUser = async () => {
               variant="filled"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+              <TextField
+              label="Phone Number (Whatsapp)"
+              fullWidth
+              variant="filled"
+              value={form.phoneNumber}
+              onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
+              placeholder='62...'
             />
             <TextField
               label="Password"
