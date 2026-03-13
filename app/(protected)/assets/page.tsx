@@ -105,11 +105,21 @@ export default function AssetsPage() {
   };
 
   // ================= ACTIONS =================
+  // const deleteAsset = async (id: string) => {
+  //   if (!confirm('Delete this asset?')) return;
+  //   await api.delete(`/assets/${id}`);
+  //   loadAssets();
+  // };
   const deleteAsset = async (id: string) => {
-    if (!confirm('Delete this asset?')) return;
+  if (!confirm('Delete this asset?')) return;
+
+  try {
     await api.delete(`/assets/${id}`);
     loadAssets();
-  };
+  } catch (e: any) {
+    alert(e?.response?.data?.message || 'Failed to delete asset');
+  }
+};
 
   const exportCsv = async () => {
     const res = await api.get('/assets/export/csv', { responseType: 'blob' });

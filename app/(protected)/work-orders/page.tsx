@@ -15,7 +15,6 @@ import {
 } from '@mui/icons-material';
 
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
-
 import StatusChip from '../../../components/StatusChip';
 
 export default function WorkOrdersPage() {
@@ -29,13 +28,17 @@ export default function WorkOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [assigneeFilter, setAssigneeFilter] = useState('ALL');
-  const [creatorFilter, setCreatorFilter] = useState('ALL'); // Tambah filter creator
+  const [creatorFilter, setCreatorFilter] = useState('ALL');
+  const [unitFilter, setUnitFilter] = useState('ALL'); // NEW: Unit Filter
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
   // Sort State
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   const [orderBy, setOrderBy] = useState('createdAt');
+
+  // Opsi Unit sesuai request lo
+  const unitOptions = ['TK', 'SD', 'SMP', 'SMA', 'NonUnit'];
 
   useEffect(() => {
     const user = getUserFromToken();
@@ -68,7 +71,7 @@ export default function WorkOrdersPage() {
       );
     }
 
-    // Status Filter (Including Overdue Logic)
+    // Status Filter
     if (statusFilter !== 'ALL') {
       if (statusFilter === 'OVERDUE') {
         result = result.filter(wo => wo.isOverdue === true);
@@ -80,6 +83,11 @@ export default function WorkOrdersPage() {
     if (priorityFilter !== 'ALL') result = result.filter(wo => wo.priority === priorityFilter);
     if (assigneeFilter !== 'ALL') result = result.filter(wo => wo.assignee?.email === assigneeFilter);
     if (creatorFilter !== 'ALL') result = result.filter(wo => wo.createdBy?.email === creatorFilter);
+    
+    // NEW: Unit Filter Logic (Langsung dari object wo)
+    if (unitFilter !== 'ALL') {
+      result = result.filter(wo => wo.unit === unitFilter);
+    }
     
     // Date Filter
     if (startDate) result = result.filter(wo => new Date(wo.createdAt) >= new Date(startDate));
@@ -95,6 +103,7 @@ export default function WorkOrdersPage() {
       let bValue: any = b[orderBy];
 
       if (orderBy === 'asset') { aValue = a.asset?.name || ''; bValue = b.asset?.name || ''; }
+      if (orderBy === 'unit') { aValue = a.unit || ''; bValue = b.unit || ''; } // Sort by Unit langsung
       if (orderBy === 'assignee') { aValue = a.assignee?.email || ''; bValue = b.assignee?.email || ''; }
       if (orderBy === 'createdBy') { aValue = a.createdBy?.email || a.createdBy?.name || ''; bValue = b.createdBy?.email || b.createdBy?.name || ''; }
 
@@ -106,7 +115,7 @@ export default function WorkOrdersPage() {
     });
 
     setFilteredData(result);
-  }, [search, statusFilter, priorityFilter, assigneeFilter, creatorFilter, startDate, endDate, workOrders, order, orderBy]);
+  }, [search, statusFilter, priorityFilter, assigneeFilter, creatorFilter, unitFilter, startDate, endDate, workOrders, order, orderBy]);
 
   const handleSort = (property: string) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -120,6 +129,7 @@ export default function WorkOrdersPage() {
     setPriorityFilter('ALL');
     setAssigneeFilter('ALL');
     setCreatorFilter('ALL');
+    setUnitFilter('ALL');
     setStartDate('');
     setEndDate('');
     setOrder('desc');
@@ -147,7 +157,7 @@ export default function WorkOrdersPage() {
   };
 
 const sendWhatsApp = (wo: any) => {
-  const { assignee, asset, id, title, dueDate } = wo;
+  const { assignee, asset, id, title, dueDate, unit } = wo; // Ambil unit dari wo
   const phone = assignee?.phoneNumber;
 
   if (!phone) {
@@ -155,13 +165,8 @@ const sendWhatsApp = (wo: any) => {
     return;
   }
 
-  // Format tanggal lebih rapi
   const formattedDate = dueDate 
-    ? new Date(dueDate).toLocaleDateString('id-ID', { 
-        day: '2-digit', 
-        month: 'long', 
-        year: 'numeric' 
-      }) 
+    ? new Date(dueDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }) 
     : '-';
 
   const message = [
@@ -171,18 +176,16 @@ const sendWhatsApp = (wo: any) => {
     '',
     `*Detail WO:*`,
     ` Nama WO: ${title}`,
-    ` Branch: ${asset?.branch || '-'}`,
-    ` Lokasi: ${asset?.location || '-'}`,
+    ` Unit: ${unit || '-'}`, // Unit dari WO
     ` Asset: ${asset?.name || '-'}`,
     ` Deadline: ${formattedDate}`,
     '',
     `Terima kasih!`,
-
+    '',
     `Link WO: ${window.location.origin}/work-orders/${id}`
   ].join('\n');
 
   const url = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
-  
   window.open(url, "_blank");
 };
 
@@ -238,7 +241,7 @@ const sendWhatsApp = (wo: any) => {
       {/* FILTER PANEL */}
       <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)', bgcolor: alpha('#fff', 0.02) }}>
         <Grid container spacing={2} alignItems="flex-end">
-          <Grid item xs={12} md={2.5}>
+          <Grid item xs={12} md={2}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>SEARCH</Typography>
             <TextField fullWidth size="small" placeholder="Title, Asset, or Staff..." value={search} onChange={(e) => setSearch(e.target.value)} InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
           </Grid>
@@ -266,6 +269,18 @@ const sendWhatsApp = (wo: any) => {
               </Select>
             </FormControl>
           </Grid>
+
+          {/* UNIT FILTER (DIRECT FROM WO) */}
+          <Grid item xs={6} md={1.2}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>UNIT</Typography>
+            <FormControl fullWidth size="small">
+              <Select value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} sx={{ borderRadius: '10px' }}>
+                <MenuItem value="ALL">All Units</MenuItem>
+                {unitOptions.map(u => <MenuItem key={u} value={u}>{u}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Grid>
+
           <Grid item xs={6} md={1.5}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>ASSIGNEE</Typography>
             <FormControl fullWidth size="small">
@@ -284,23 +299,29 @@ const sendWhatsApp = (wo: any) => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid item xs={6} md={1.5}>
+          <Grid item xs={6} md={1}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>FROM</Typography>
             <TextField fullWidth size="small" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
           </Grid>
-          <Grid item xs={6} md={1.5}>
+          <Grid item xs={6} md={1}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>TO</Typography>
             <TextField fullWidth size="small" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} sx={{ '& .MuiOutlinedInput-root': { borderRadius: '10px' } }} />
           </Grid>
-          <Grid item xs={12} md={1}>
+          <Grid item xs={12} md={0.4}>
             <Button fullWidth variant="outlined" onClick={resetFilters} sx={{ height: '40px', borderRadius: '10px', borderColor: alpha('#fff', 0.1) }}><RestartAlt /></Button>
           </Grid>
         </Grid>
       </Paper>
 
       {/* TABLE SECTION */}
-      <TableContainer component={Paper} elevation={0} sx={{ borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)', background: alpha('#121212', 0.6), overflow: 'hidden' }}>
-        <Table>
+      {/* TABLE SECTION */}
+      <TableContainer component={Paper} elevation={0} sx={{ 
+        borderRadius: '20px', 
+        border: '1px solid rgba(255,255,255,0.08)', 
+        background: alpha('#121212', 0.6), 
+        overflow: 'auto' // Pastikan overflow auto
+      }}>
+      <Table sx={{ minWidth: 1100 }}> {/* Set minWidth supaya tidak terlalu sempit */}
           <TableHead sx={{ bgcolor: alpha('#7C7CFF', 0.08) }}>
             <TableRow>
               <TableCell sx={{ fontWeight: 700, py: 2 }}>
@@ -319,6 +340,9 @@ const sendWhatsApp = (wo: any) => {
                 <TableSortLabel active={orderBy === 'assignee'} direction={orderBy === 'assignee' ? order : 'asc'} onClick={() => handleSort('assignee')}>Assignee</TableSortLabel>
               </TableCell>
               <TableCell sx={{ fontWeight: 700 }}>
+                <TableSortLabel active={orderBy === 'unit'} direction={orderBy === 'unit' ? order : 'asc'} onClick={() => handleSort('unit')}>Unit</TableSortLabel>
+              </TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>
                 <TableSortLabel active={orderBy === 'createdAt'} direction={orderBy === 'createdAt' ? order : 'asc'} onClick={() => handleSort('createdAt')}>Created At</TableSortLabel>
               </TableCell>
               <TableCell sx={{ fontWeight: 700 }}>
@@ -327,15 +351,30 @@ const sendWhatsApp = (wo: any) => {
               <TableCell sx={{ fontWeight: 700 }}>
                 <TableSortLabel active={orderBy === 'dueDate'} direction={orderBy === 'dueDate' ? order : 'asc'} onClick={() => handleSort('dueDate')}>Due Date</TableSortLabel>
               </TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700 }}>Actions</TableCell>
+
+              {/* MODIFIKASI DISINI: STICKY HEADER */}
+              <TableCell 
+                align="right" 
+                sx={{ 
+                  fontWeight: 700, 
+                  position: 'sticky', 
+                  right: 0, 
+                  bgcolor: '#1c1c21', // Sesuaikan dengan warna background table lo
+                  zIndex: 2,
+                  boxShadow: '-4px 0 8px rgba(0,0,0,0.3)' 
+                }}
+              >
+                Actions
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredData.map((wo) => (
               <TableRow key={wo.id} hover onClick={() => router.push(`/work-orders/${wo.id}`)} sx={{ cursor: 'pointer', '&:last-child td, &:last-child th': { border: 0 } }}>
+                {/* ... cell lainnya ... */}
                 <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{wo.title}</Typography></TableCell>
                 <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: wo.priority === 'HIGH' ? '#f44336' : '#7C7CFF', boxShadow: `0 0 6px ${wo.priority === 'HIGH' ? '#f44336' : '#7C7CFF'}` }} />
                     <Typography variant="caption" sx={{ fontWeight: 700 }}>{wo.priority}</Typography>
                   </Box>
@@ -343,11 +382,9 @@ const sendWhatsApp = (wo: any) => {
                 <TableCell>
                     <Stack direction="row" spacing={1} alignItems="center">
                       <StatusChip status={wo.status} />
-                      {wo.isOverdue && (
-                        <StatusChip status="OVERDUE"/>
-                      )}
+                      {wo.isOverdue && <StatusChip status="OVERDUE"/>}
                     </Stack>
-                  </TableCell>
+                </TableCell>
                 <TableCell>
                   <Stack direction="row" spacing={1} alignItems="center">
                     <AssignmentOutlined sx={{ fontSize: 16, color: 'text.secondary' }} />
@@ -355,58 +392,44 @@ const sendWhatsApp = (wo: any) => {
                   </Stack>
                 </TableCell>
                 <TableCell><Typography variant="body2">{wo.assignee?.email?.split('@')[0] || wo.assignee?.name || '-'}</Typography></TableCell>
-                <TableCell><Typography variant="body2" color="text.secondary">{new Date(wo.createdAt).toLocaleDateString()} ({wo.progressDays}d)</Typography></TableCell>
-                <TableCell>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <PersonOutline sx={{ fontSize: 16, color: 'text.secondary' }} />
-                    <Typography variant="body2">{wo.createdBy?.email?.split('@')[0] || wo.createdBy?.name || '-'}</Typography>
-                  </Stack>
-                </TableCell>
-                <TableCell><Typography variant="body2" color={wo.isOverdue? 'error' : 'text.secondary'} fontWeight={wo.isOverdue?700:400}>{wo.dueDate ? new Date(wo.dueDate).toLocaleDateString() : '-'}</Typography></TableCell>
-    
-                <TableCell align="right">
+                <TableCell><Typography variant="body2" sx={{ fontWeight: 500 }}>{wo.unit || '-'}</Typography></TableCell>
+                <TableCell><Typography variant="body2" color="text.secondary">{new Date(wo.createdAt).toLocaleDateString()}</Typography></TableCell>
+                <TableCell><Typography variant="body2">{wo.createdBy?.email?.split('@')[0] || '-'}</Typography></TableCell>
+                <TableCell><Typography variant="body2">{wo.dueDate ? new Date(wo.dueDate).toLocaleDateString() : '-'}</Typography></TableCell>
+
+                {/* MODIFIKASI DISINI: STICKY BODY CELL */}
+                <TableCell 
+                  align="right"
+                  sx={{ 
+                    position: 'sticky', 
+                    right: 0, 
+                    bgcolor: '#16161a', // Sedikit lebih gelap dari baris hover
+                    zIndex: 1,
+                    boxShadow: '-4px 0 8px rgba(0,0,0,0.3)' 
+                  }}
+                >
                   <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
+                    {/* ... Button Start/Finish lo ... */}
                     {role === 'TECHNICIAN' && wo.status === 'ASSIGNED' && (
                       <Button size="small" variant="contained" startIcon={<PlayArrowOutlined />} onClick={() => updateStatus(wo.id, 'IN_PROGRESS')} sx={{ borderRadius: '8px', textTransform: 'none' }}>Start</Button>
                     )}  
                     {role === 'TECHNICIAN' && wo.status === 'IN_PROGRESS' && (
                       <Button size="small" variant="contained" color="success" startIcon={<CheckCircleOutline />} onClick={() => updateStatus(wo.id, 'DONE')} sx={{ borderRadius: '8px', textTransform: 'none' }}>Finish</Button>
                     )}
-{wo.assignee?.phoneNumber && (
-  <Tooltip title="Send WhatsApp">
-    <IconButton
-      size="small"
-      sx={{
-        color: '#25D366',
-        '&:hover': {
-          bgcolor: alpha('#25D366', 0.1),
-          color: '#25D366'
-        }
-      }}
-      onClick={() => sendWhatsApp(wo)}
-    >
-      <WhatsAppIcon fontSize="small" />
-    </IconButton>
-  </Tooltip>
-)}
+                    
+                    {/* Icon WA */}
+                    {wo.assignee?.phoneNumber && (
+                      <IconButton size="small" sx={{ color: '#25D366' }} onClick={() => sendWhatsApp(wo)}>
+                        <WhatsAppIcon fontSize="small" />
+                      </IconButton>
+                    )}
 
-{role && ['ADMIN', 'SUPERVISOR','USER'].includes(role) && (
-  <Tooltip title="Delete Work Order">
-    <IconButton
-      size="small"
-      sx={{
-        color: alpha('#f44336', 0.7),
-        '&:hover': {
-          bgcolor: alpha('#f44336', 0.1),
-          color: '#f44336'
-        }
-      }}
-      onClick={(e) => deleteWO(e, wo)}
-    >
-      <DeleteOutline fontSize="small" />
-    </IconButton>
-  </Tooltip>
-)}
+                    {/* Icon Delete */}
+                    {role && ['ADMIN', 'SUPERVISOR','USER'].includes(role) && (
+                      <IconButton size="small" sx={{ color: '#f44336' }} onClick={(e) => deleteWO(e, wo)}>
+                        <DeleteOutline fontSize="small" />
+                      </IconButton>
+                    )}
                   </Box>
                 </TableCell>
               </TableRow>

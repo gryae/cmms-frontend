@@ -13,7 +13,9 @@ import {
 } from '@mui/icons-material';
 
 const ROLES = ['ADMIN', 'TECHNICIAN','USER'];
-
+const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL;
+const isSuperAdmin = (user:any) =>
+  user.email?.toLowerCase() === SUPER_ADMIN_EMAIL?.toLowerCase();
 // Helper untuk icon berdasarkan role
 const RoleIcon = ({ role }: { role: string }) => {
   switch (role) {
@@ -24,6 +26,7 @@ const RoleIcon = ({ role }: { role: string }) => {
   }
 };
 
+//console.log("SUPER ADMIN ENV:", SUPER_ADMIN_EMAIL);
 export default function UserManagementPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
@@ -56,15 +59,32 @@ const [editingUser, setEditingUser] = useState<any | null>(null);
     }
   };
 
-  const deleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
-    try {
-      await api.delete(`/users/${userId}`);
-      load();
-    } catch (e: any) {
-      alert(e?.response?.data?.message || 'Cannot delete this user');
-    }
-  };
+  // const deleteUser = async (userId: string) => {
+  //   if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+  //   try {
+  //     await api.delete(`/users/${userId}`);
+  //     load();
+  //   } catch (e: any) {
+  //     alert(e?.response?.data?.message || 'Cannot delete this user');
+  //   }
+  // };
+
+  const deleteUser = async (user: any) => {
+
+  if (isSuperAdmin(user)) {
+    alert("Super Admin cannot be deleted");
+    return;
+  }
+
+  if (!confirm('Are you sure you want to delete this user?')) return;
+
+  try {
+    await api.delete(`/users/${user.id}`);
+    load();
+  } catch (e: any) {
+    alert(e?.response?.data?.message || 'Cannot delete this user');
+  }
+};
 
 const saveUser = async () => {
   try {
@@ -166,7 +186,7 @@ const saveUser = async () => {
                 <Select
                   size="small"
                   value={u.role}
-                  disabled={u.role === 'ADMIN'}
+                  disabled={isSuperAdmin(u)}
                   onChange={(e) => updateRole(u.id, e.target.value)}
                   startAdornment={<Box sx={{ mr: 1, display: 'flex' }}><RoleIcon role={u.role} /></Box>}
                   sx={{ 
@@ -188,12 +208,12 @@ const saveUser = async () => {
 
               {/* Action Buttons */}
               <Box sx={{ flex: 1, textAlign: 'right', minWidth: 100 }}>
-                <Tooltip title={u.role === 'ADMIN' ? "Cannot delete Admin" : "Delete User"}>
+                <Tooltip title={isSuperAdmin(u) ? "Cannot delete Super Admin" : "Delete User"}>
                   <span>
                     <IconButton 
                       color="error" 
-                      disabled={u.role === 'ADMIN'} 
-                      onClick={() => deleteUser(u.id)}
+                      disabled={isSuperAdmin(u)} 
+                      onClick={() => deleteUser(u)}
                       sx={{ bgcolor: alpha('#f44336', 0.05), '&:hover': { bgcolor: alpha('#f44336', 0.15) } }}
                     >
                       <DeleteOutline />

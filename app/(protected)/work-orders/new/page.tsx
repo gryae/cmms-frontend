@@ -11,10 +11,10 @@ import {
 } from '@mui/material';
 import {
   Assignment, Description, PriorityHigh, Event, 
-  Construction, Person, ArrowBack, Save
+  Construction, Person, ArrowBack, Save, School
 } from '@mui/icons-material';
 
-type Asset = { id: string; name: string; location:string };
+type Asset = { id: string; name: string; location:string, code:string };
 type Technician = { id: string; email: string ,name:string};
 
 export default function NewWorkOrderPage() {
@@ -23,6 +23,7 @@ export default function NewWorkOrderPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('MEDIUM');
+  const [unit, setUnit] = useState(''); // NEW: State untuk Unit
   const [assetId, setAssetId] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -30,6 +31,9 @@ export default function NewWorkOrderPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [techs, setTechs] = useState<Technician[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Opsi Unit sesuai request
+  const unitOptions = ['TK', 'SD', 'SMP', 'SMA', 'NonUnit'];
 
   useEffect(() => {
     api.get('/assets').then((res) => setAssets(res.data));
@@ -45,11 +49,14 @@ export default function NewWorkOrderPage() {
         title,
         description,
         priority,
+        unit, // NEW: Masukkan unit ke payload
         assetId: assetId || undefined,
         assignedTo: assignedTo || undefined,
         dueDate,
       });
       router.push('/work-orders');
+    } catch (err) {
+        console.error("Error creating WO:", err);
     } finally {
       setLoading(false);
     }
@@ -124,6 +131,29 @@ export default function NewWorkOrderPage() {
               Logistics & Scheduling
             </Typography>
           </Grid>
+          {/* NEW: Unit Selection Field */}
+          <Grid item xs={12} sm={6}>
+            <TextField
+              select
+              fullWidth
+              label="Work Order Unit"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              required
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <School fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            >
+              <MenuItem value="" disabled>Select Unit</MenuItem>
+              {unitOptions.map((opt) => (
+                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+              ))}
+            </TextField>
+          </Grid>
 
           <Grid item xs={12} sm={6}>
             <TextField
@@ -164,59 +194,36 @@ export default function NewWorkOrderPage() {
               }}
             />
           </Grid>
-
-          {/* <Grid item xs={12} sm={6}>
-            <TextField
-              select
+          <Grid item xs={12} sm={6}>
+            <Autocomplete
               fullWidth
-              label="Target Asset"
-              value={assetId}
-              onChange={(e) => setAssetId(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Construction fontSize="small" />
-                  </InputAdornment>
-                ),
+              options={assets}
+              getOptionLabel={(a) =>a.code + " - " + a.name + " - " + a.location}
+              value={assets.find((a) => a.id === assetId) || null}
+              onChange={(event, newValue) => {
+                setAssetId(newValue?.id || "");
               }}
-            >
-              <MenuItem value=""><em>None / Unlinked</em></MenuItem>
-              {assets.map((a) => (
-                <MenuItem key={a.id} value={a.id}>{a.name + " - " + a.location}</MenuItem>
-              ))}
-            </TextField>
-          </Grid> */}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Target Asset"
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <>
+                        <InputAdornment position="start">
+                          <Construction fontSize="small" />
+                        </InputAdornment>
+                        {params.InputProps.startAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+            />
+          </Grid>
 
-          <Grid item xs={12} sm={6}>
-  <Autocomplete
-    fullWidth
-    options={assets}
-    getOptionLabel={(a) => a.name + " - " + a.location}
-    value={assets.find((a) => a.id === assetId) || null}
-    onChange={(event, newValue) => {
-      setAssetId(newValue?.id || "");
-    }}
-    renderInput={(params) => (
-      <TextField
-        {...params}
-        label="Target Asset"
-        InputProps={{
-          ...params.InputProps,
-          startAdornment: (
-            <>
-              <InputAdornment position="start">
-                <Construction fontSize="small" />
-              </InputAdornment>
-              {params.InputProps.startAdornment}
-            </>
-          ),
-        }}
-      />
-    )}
-  />
-</Grid>
-
-          <Grid item xs={12} sm={6}>
+          <Grid item xs={12}>
             <TextField
               select
               fullWidth
@@ -253,7 +260,7 @@ export default function NewWorkOrderPage() {
                 variant="contained"
                 startIcon={<Save />}
                 onClick={submit}
-                disabled={!title || loading}
+                disabled={!title || !unit || loading} // NEW: Judul & Unit wajib diisi
                 sx={{ 
                   borderRadius: 2, 
                   px: 6,

@@ -73,8 +73,13 @@ export default function AssetDetailPage() {
 
   const remove = async () => {
     if (!confirm('Delete this asset? This action cannot be undone.')) return;
-    await api.delete(`/assets/${id}`);
-    router.push('/assets');
+
+    try{
+      await api.delete(`/assets/${id}`);
+      router.push('/assets');
+    } catch(e:any) {
+      alert(e?.response?.data?.message || 'Failed to delete asset');
+    }
   };
 
   useEffect(() => {

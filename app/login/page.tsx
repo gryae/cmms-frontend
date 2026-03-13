@@ -24,12 +24,38 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL;
 
+  // const login = async () => {
+  //   const res = await api.post('/auth/login', { email, password });
+  //   localStorage.setItem('token', res.data.access_token);
+  //   window.location.href = '/dashboard';
+  // };
   const login = async () => {
-    const res = await api.post('/auth/login', { email, password });
+  try {
+
+    setError('');
+
+    const res = await api.post('/auth/login', {
+      email,
+      password
+    });
+
     localStorage.setItem('token', res.data.access_token);
+
     window.location.href = '/dashboard';
-  };
+
+  } catch (err: any) {
+
+    const message =
+      err?.response?.data?.message ||
+      'Email atau password salah';
+
+    setError(message);
+
+  }
+};
 
   return (
     <Box
@@ -137,6 +163,19 @@ export default function LoginPage() {
                 mt: 2
               }}
             />
+            {error && (
+  <Typography
+    variant="body2"
+    sx={{
+      color: '#f87171',
+      mt: 1,
+      fontWeight: 500,
+      fontSize: '1rem',
+    }}
+  >
+    {error}
+  </Typography>
+)}
 
             <Button
               fullWidth

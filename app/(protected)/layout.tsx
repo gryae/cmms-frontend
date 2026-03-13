@@ -1,6 +1,8 @@
 'use client';
 
-import { Box, Toolbar, Container } from '@mui/material';
+import { useState } from 'react';
+import { Box, Toolbar, Container, IconButton, Drawer } from '@mui/material';
+import MenuIcon from '@mui/icons-material/Menu';
 import Sidebar from '../../components/sidebar';
 
 export default function ProtectedLayout({
@@ -8,33 +10,63 @@ export default function ProtectedLayout({
 }: {
   children: React.ReactNode;
 }) {
+
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const toggleDrawer = () => {
+    setMobileOpen(!mobileOpen);
+  };
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      {/* Sidebar tetap pada tempatnya */}
-      <Sidebar />
-      
-      <Box 
-        component="main" 
-        sx={{ 
-          flexGrow: 1, 
-          display: 'flex',
-          flexDirection: 'column',
-          minWidth: 0, // Mencegah konten overflow pada layar kecil
-          transition: 'all 0.3s ease-in-out',
+
+      {/* DESKTOP SIDEBAR */}
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <Sidebar />
+      </Box>
+
+      {/* MOBILE DRAWER */}
+      <Drawer
+        open={mobileOpen}
+        onClose={toggleDrawer}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': {
+            width: 240,
+          },
         }}
       >
-        {/* Toolbar sebagai spacer untuk fixed header jika ada */}
-        <Toolbar /> 
+        <Sidebar />
+      </Drawer>
 
-        <Container 
-          maxWidth="lg" // Membatasi lebar agar konten tidak terlalu "melar" di layar ultrawide
-          sx={{ 
-            py: { xs: 2, md: 4 }, // Padding lebih kecil di mobile, lega di desktop
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+        }}
+      >
+
+        {/* MOBILE HEADER */}
+        <Toolbar sx={{ display: { xs: 'flex', md: 'none' } }}>
+          <IconButton onClick={toggleDrawer}>
+            <MenuIcon />
+          </IconButton>
+        </Toolbar>
+
+        {/* DESKTOP SPACER */}
+        <Toolbar sx={{ display: { xs: 'none', md: 'block' } }} />
+
+        <Container
+          maxWidth="lg"
+          sx={{
+            py: { xs: 2, md: 4 },
             px: { xs: 2, md: 3 },
             flexGrow: 1,
           }}
         >
-          {/* Animasi masuk sederhana untuk semua halaman dashboard */}
           <Box
             sx={{
               animation: 'fadeIn 0.5s ease-out',
@@ -47,6 +79,7 @@ export default function ProtectedLayout({
             {children}
           </Box>
         </Container>
+
       </Box>
     </Box>
   );
