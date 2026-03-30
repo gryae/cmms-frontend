@@ -7,12 +7,14 @@ import api, { getUserFromToken } from '../../../lib/api';
 import {
   Container, Typography, Paper, Table, TableHead, TableRow, TableCell,
   TableBody, Button, Box, TextField, InputAdornment, IconButton, 
-  Tooltip, Chip, Stack, alpha, TableContainer, Avatar, TableSortLabel, Grid
+  Tooltip, Chip, Stack, alpha, TableContainer, Avatar, TableSortLabel, Grid,
+  TablePagination, Checkbox
 } from '@mui/material';
 import {
   Add, DeleteOutline, Visibility, 
   Business, LocationOn, CalendarToday, Inventory,
-  FileUpload, FileDownload, CheckCircle, Description, RestartAlt, Search
+  FileUpload, FileDownload, CheckCircle, Description, RestartAlt, Search,
+  ChevronLeft, ChevronRight
 } from '@mui/icons-material';
 
 export default function AssetsPage() {
@@ -23,13 +25,14 @@ export default function AssetsPage() {
   const [file, setFile] = useState<File | null>(null);
 
   // ================= STATE FILTERING & SORTING =================
-  const [colFilters, setColFilters] = useState({
-    name: '',
-    location: '',
-    year: ''
-  });
+  const [colFilters, setColFilters] = useState({ name: '', location: '', year: '' });
   const [order, setOrder] = useState<'asc' | 'desc'>('asc');
   const [orderBy, setOrderBy] = useState('name');
+
+  // ================= MULTIPLE SELECT & PAGINATION =================
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   useEffect(() => {
     const user = getUserFromToken();
@@ -49,7 +52,6 @@ export default function AssetsPage() {
   useEffect(() => {
     let result = [...assets];
 
-    // Column Specific Logic (Name or Code)
     if (colFilters.name) {
       const q = colFilters.name.toLowerCase();
       result = result.filter(a => 
@@ -57,7 +59,7 @@ export default function AssetsPage() {
         a.code.toLowerCase().includes(q)
       );
     }
-    // Location Logic (Branch or specific Location)
+
     if (colFilters.location) {
       const q = colFilters.location.toLowerCase();
       result = result.filter(a => 
@@ -65,24 +67,21 @@ export default function AssetsPage() {
         (a.location?.toLowerCase().includes(q))
       );
     }
-    // Year Logic
+
     if (colFilters.year) {
       result = result.filter(a => a.procurementYear?.toString().includes(colFilters.year));
     }
 
-    // Sort Logic
     result.sort((a, b) => {
       let aVal = a[orderBy] || '';
       let bVal = b[orderBy] || '';
       
-      if (order === 'desc') {
-        return aVal < bVal ? 1 : -1;
-      } else {
-        return aVal > bVal ? 1 : -1;
-      }
+      if (order === 'desc') return aVal < bVal ? 1 : -1;
+      else return aVal > bVal ? 1 : -1;
     });
 
     setFiltered(result);
+    setPage(0); // Reset page when filtering
   }, [colFilters, assets, order, orderBy]);
 
   const handleSort = (property: string) => {
@@ -92,10 +91,7 @@ export default function AssetsPage() {
   };
 
   const handleColFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setColFilters({
-      ...colFilters,
-      [e.target.name]: e.target.value
-    });
+    setColFilters({ ...colFilters, [e.target.name]: e.target.value });
   };
 
   const resetFilters = () => {
@@ -104,22 +100,46 @@ export default function AssetsPage() {
     setOrderBy('name');
   };
 
-  // ================= ACTIONS =================
-  // const deleteAsset = async (id: string) => {
-  //   if (!confirm('Delete this asset?')) return;
-  //   await api.delete(`/assets/${id}`);
-  //   loadAssets();
-  // };
-  const deleteAsset = async (id: string) => {
-  if (!confirm('Delete this asset?')) return;
+  // ================= MULTI SELECT =================
+  const handleSelectAllClick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      const newSelected = new Set(paginated.map(a => a.id)); // Select current page items
+      setSelected(newSelected);
+    } else {
+      setSelected(new Set());
+    }
+  };
 
-  try {
-    await api.delete(`/assets/${id}`);
-    loadAssets();
-  } catch (e: any) {
-    alert(e?.response?.data?.message || 'Failed to delete asset');
-  }
-};
+  const handleSelect = (id: string) => {
+    const newSelected = new Set(selected);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelected(newSelected);
+  };
+
+  const deleteSelected = async () => {
+    if (!selected.size) return alert("No assets selected!");
+    if (!confirm(`Delete ${selected.size} selected assets?`)) return;
+
+    try {
+      await Promise.all(Array.from(selected).map(id => api.delete(`/assets/${id}`)));
+      setSelected(new Set());
+      loadAssets();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to delete selected assets");
+    }
+  };
+
+  const deleteAsset = async (id: string) => {
+    if (!confirm('Delete this asset?')) return;
+
+    try {
+      await api.delete(`/assets/${id}`);
+      loadAssets();
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Failed to delete asset');
+    }
+  };
 
   const exportCsv = async () => {
     const res = await api.get('/assets/export/csv', { responseType: 'blob' });
@@ -149,28 +169,32 @@ export default function AssetsPage() {
 
   const isActionAuthorized = ['ADMIN', 'SUPERVISOR','USER','TECHNICIAN'].includes(role);
 
+  // ================= PAGINATION DATA =================
+  const paginated = filtered.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
   return (
     <Container maxWidth="xl" sx={{ mt: 3, pb: 6 }}>
-      {/* HEADER SECTION - Styled like Work Orders */}
+      {/* HEADER */}
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: 2 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 900, color: 'white', letterSpacing: '-0.5px' }}>
             Assets Inventory
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage and track school facility assets in real-time.
+            Total Assets: {filtered.length}
           </Typography>
         </Box>
 
         <Stack direction="row" spacing={1.5} flexWrap="wrap">
-          <Button
-            variant="outlined"
-            startIcon={<FileDownload />}
-            onClick={exportCsv}
-            sx={{ borderRadius: '12px', textTransform: 'none', borderColor: 'rgba(255,255,255,0.12)', color: 'white' }}
-          >
+          <Button variant="outlined" startIcon={<FileDownload />} onClick={exportCsv} sx={{ borderRadius: '12px', textTransform: 'none', borderColor: 'rgba(255,255,255,0.12)', color: 'white' }}>
             Export
           </Button>
+
+          {selected.size > 0 && (
+            <Button variant="contained" color="error" startIcon={<DeleteOutline />} onClick={deleteSelected} sx={{ borderRadius: '12px', textTransform: 'none' }}>
+              Delete Selected ({selected.size})
+            </Button>
+          )}
 
           {isActionAuthorized && (
             <>
@@ -179,7 +203,7 @@ export default function AssetsPage() {
                 color={file ? "success" : "inherit"}
                 component="label"
                 startIcon={file ? <CheckCircle /> : <FileUpload />}
-                sx={{ borderRadius: '12px', textTransform: 'none', borderColor: 'rgba(255,255,255,0.12)', color: file ? 'white' : 'white' }}
+                sx={{ borderRadius: '12px', textTransform: 'none', borderColor: 'rgba(255,255,255,0.12)', color: 'white' }}
               >
                 {file ? "File Ready" : "Choose CSV"}
                 <input hidden type="file" accept=".csv" onChange={(e) => setFile(e.target.files?.[0] || null)} />
@@ -204,7 +228,7 @@ export default function AssetsPage() {
         </Stack>
       </Box>
 
-      {/* FILTER PANEL - UI Synced with Work Orders */}
+      {/* FILTER PANEL */}
       <Paper elevation={0} sx={{ p: 3, mb: 4, borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)', bgcolor: alpha('#fff', 0.02) }}>
         <Grid container spacing={2} alignItems="flex-end">
           <Grid item xs={12} md={4}>
@@ -247,12 +271,12 @@ export default function AssetsPage() {
         )}
       </Paper>
 
-      {/* ASSET TABLE - UI Synced with Work Orders */}
+      {/* ASSET TABLE */}
       <TableContainer component={Paper} elevation={0} sx={{ borderRadius: '20px', border: '1px solid rgba(255,255,255,0.08)', background: alpha('#121212', 0.6), overflow: 'hidden' }}>
         <Table>
           <TableHead sx={{ bgcolor: alpha('#7C7CFF', 0.08) }}>
             <TableRow>
-              <TableCell sx={{ fontWeight: 700, py: 2 }}>
+              <TableCell sx={{ fontWeight: 700 }}>
                 <TableSortLabel active={orderBy === 'name'} direction={orderBy === 'name' ? order : 'asc'} onClick={() => handleSort('name')}>
                   Asset Info
                 </TableSortLabel>
@@ -268,16 +292,28 @@ export default function AssetsPage() {
                 </TableSortLabel>
               </TableCell>
               <TableCell align="right" sx={{ fontWeight: 700 }}>Actions</TableCell>
+              <TableCell padding="checkbox" align="center">
+                <Checkbox
+                  size="small"
+                  checked={paginated.length > 0 && paginated.every(a => selected.has(a.id))}
+                  onChange={handleSelectAllClick}
+                  sx={{ color: 'rgba(255,255,255,0.3)', '&.Mui-checked': { color: '#7C7CFF' } }}
+                />
+              </TableCell>
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {filtered.map((asset) => (
+            {paginated.map((asset) => (
               <TableRow 
                 key={asset.id} 
                 hover 
                 onClick={() => router.push(`/assets/${asset.id}`)}
-                sx={{ cursor: 'pointer', '&:last-child td, &:last-child th': { border: 0 } }}
+                sx={{ 
+                    cursor: 'pointer', 
+                    '&:last-child td, &:last-child th': { border: 0 },
+                    bgcolor: selected.has(asset.id) ? alpha('#7C7CFF', 0.04) : 'transparent'
+                }}
               >
                 <TableCell>
                   <Stack direction="row" spacing={2} alignItems="center">
@@ -318,9 +354,9 @@ export default function AssetsPage() {
                 </TableCell>
 
                 <TableCell align="right">
-                  <Stack direction="row" spacing={1} justifyContent="flex-end" onClick={(e) => e.stopPropagation()}>
+                  <Stack direction="row" spacing={0.5} justifyContent="flex-end" onClick={(e) => e.stopPropagation()}>
                     <Tooltip title="View Details">
-                      <IconButton size="small" onClick={() => router.push(`/assets/${asset.id}`)} sx={{ color: 'white' }}>
+                      <IconButton size="small" onClick={() => router.push(`/assets/${asset.id}`)} sx={{ color: 'white', '&:hover': { bgcolor: alpha('#fff', 0.05) } }}>
                         <Visibility fontSize="small" />
                       </IconButton>
                     </Tooltip>
@@ -338,12 +374,21 @@ export default function AssetsPage() {
                     )}
                   </Stack>
                 </TableCell>
+
+                <TableCell padding="checkbox" align="center" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    size="small"
+                    checked={selected.has(asset.id)}
+                    onChange={() => handleSelect(asset.id)}
+                    sx={{ color: 'rgba(255,255,255,0.3)', '&.Mui-checked': { color: '#7C7CFF' } }}
+                  />
+                </TableCell>
               </TableRow>
             ))}
 
-            {filtered.length === 0 && (
+            {paginated.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} align="center" sx={{ py: 10 }}>
+                <TableCell colSpan={5} align="center" sx={{ py: 10 }}>
                   <Typography variant="body1" color="text.secondary" fontWeight={500}>
                     No assets found matching your criteria.
                   </Typography>
@@ -352,6 +397,41 @@ export default function AssetsPage() {
             )}
           </TableBody>
         </Table>
+
+        {/* CUSTOM PAGINATION STYLING */}
+        <Box sx={{ 
+            px: 2, py: 1.5, 
+            borderTop: '1px solid rgba(255,255,255,0.08)', 
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            bgcolor: alpha('#fff', 0.01)
+        }}>
+           <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+             Showing {page * rowsPerPage + 1} to {Math.min((page + 1) * rowsPerPage, filtered.length)} of {filtered.length} entries
+           </Typography>
+
+           <TablePagination
+            component="div"
+            count={filtered.length}
+            page={page}
+            onPageChange={(e, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => {
+              setRowsPerPage(parseInt(e.target.value, 10));
+              setPage(0);
+            }}
+            rowsPerPageOptions={[5, 10, 20, 50]}
+            labelRowsPerPage="Rows:"
+            sx={{ 
+                border: 'none',
+                color: 'text.secondary',
+                '& .MuiTablePagination-spacer': { display: 'none' },
+                '& .MuiTablePagination-selectLabel': { fontSize: '12px', fontWeight: 600 },
+                '& .MuiTablePagination-displayedRows': { display: 'none' },
+                '& .MuiTablePagination-select': { borderRadius: '8px', bgcolor: alpha('#fff', 0.05), fontSize: '12px' },
+                '& .MuiTablePagination-actions': { ml: 2 }
+            }}
+          />
+        </Box>
       </TableContainer>
     </Container>
   );
