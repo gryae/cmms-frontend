@@ -9,7 +9,7 @@ import { useParams, useRouter } from 'next/navigation';
 import api from '../../../../lib/api';
 import { 
   ArrowBack, Edit, Delete, Save, Close, 
-  Inventory, Business, LocationOn, Event, History
+  Inventory, Business, LocationOn, Event, History, CalendarToday, CheckCircle
 } from '@mui/icons-material';
 
 //INFO CARD
@@ -214,17 +214,38 @@ export default function AssetDetailPage() {
                       }
                     }}
                   >
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                       <Box>
                         <Typography variant="body1" fontWeight={700}>{wo.title}</Typography>
-                        <Typography variant="caption" color="text.secondary">ID: {wo.id.substring(0,8)}</Typography>
+                        <Typography variant="caption" color="text.secondary">ID: {wo.id.substring(0, 8)}</Typography>
                       </Box>
-                      <Chip 
-                        label={wo.status} 
-                        size="small" 
-                        color={wo.status === 'COMPLETED' ? 'success' : 'warning'} 
+                      <Chip
+                        label={wo.status}
+                        size="small"
+                        color={wo.status === 'DONE' ? 'success' : 'warning'}
                         sx={{ fontWeight: 700, borderRadius: 1 }}
                       />
+                    </Stack>
+
+                    {/* DATE INFO ROW */}
+                    <Stack direction="row" spacing={3} sx={{ mt: 1.5 }}>
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <CalendarToday sx={{ fontSize: 13, color: 'text.secondary' }} />
+                        <Typography variant="caption" color="text.secondary">Created:</Typography>
+                        <Typography variant="caption" fontWeight={600}>
+                          {new Date(wo.createdAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </Typography>
+                      </Stack>
+
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <CheckCircle sx={{ fontSize: 13, color: wo.completedAt ? '#4caf50' : 'text.disabled' }} />
+                        <Typography variant="caption" color="text.secondary">Done At:</Typography>
+                        <Typography variant="caption" fontWeight={600} color={wo.completedAt ? 'success.main' : 'text.disabled'}>
+                          {wo.completedAt
+                            ? new Date(wo.completedAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+                            : '-'}
+                        </Typography>
+                      </Stack>
                     </Stack>
                   </Paper>
                 ))}

@@ -6,7 +6,7 @@ import api, { getUserFromToken } from '../../../../lib/api';
 import {
   Container, Typography, Paper, Box, Divider, TextField, MenuItem,
   Button, Grid, Stack, IconButton, Avatar, alpha,
-  Tooltip, Dialog,
+  Tooltip, Dialog, Autocomplete,
 } from '@mui/material';
 import {
   Edit, Save, Cancel, CloudUpload, Send,
@@ -27,16 +27,16 @@ export default function WorkOrderDetailPage() {
   const [role, setRole] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [editMode, setEditMode] = useState(false);
-  
+
   // UPDATE: Tambahkan unit di form state
-  const [form, setForm] = useState<any>({ 
-    title: '', 
-    description: '', 
-    priority: '', 
-    assetId: '', 
-    assignedTo: '', 
+  const [form, setForm] = useState<any>({
+    title: '',
+    description: '',
+    priority: '',
+    assetId: '',
+    assignedTo: '',
     dueDate: '',
-    unit: '' 
+    unit: ''
   });
 
   const [spareParts, setSpareParts] = useState<any[]>([]);
@@ -46,6 +46,7 @@ export default function WorkOrderDetailPage() {
   const [attachments, setAttachments] = useState<any[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [technicians, setTechnicians] = useState<any[]>([]);
+  const [assets, setAssets] = useState<any[]>([]);
   const [comments, setComments] = useState<any[]>([]);
   const [commentText, setCommentText] = useState('');
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -66,6 +67,7 @@ export default function WorkOrderDetailPage() {
       loadAttachments();
       loadComments();
       api.get('/spare-parts').then(res => setSpareParts(res.data));
+      api.get('/assets').then(res => setAssets(res.data));
 
       if (userRole === 'ADMIN' || userRole === 'SUPERVISOR' || userRole === 'USER') {
         loadTechnicians();
@@ -113,17 +115,17 @@ export default function WorkOrderDetailPage() {
 
   const deleteWO = async () => {
 
-  if (usedParts && usedParts.length > 0) {
-    alert('Cannot delete Work Order with consumed spare parts');
-    return;
-  }
+    if (usedParts && usedParts.length > 0) {
+      alert('Cannot delete Work Order with consumed spare parts');
+      return;
+    }
 
-  if (!confirm('Delete this Work Order?')) return;
+    if (!confirm('Delete this Work Order?')) return;
 
-  await api.delete(`/work-orders/${id}`);
+    await api.delete(`/work-orders/${id}`);
 
-  router.push('/work-orders');
-};
+    router.push('/work-orders');
+  };
 
   // PERMISSION HELPER
   const canUpdateStatus = () => {
@@ -275,33 +277,33 @@ export default function WorkOrderDetailPage() {
         )} */}
         <Stack direction="row" spacing={1.5}>
 
-{role && ['ADMIN', 'SUPERVISOR', 'USER'].includes(role) && (
-<Button
-  disabled={!canEditWO()}
-  variant={editMode ? "contained" : "outlined"}
-  startIcon={editMode ? <Save /> : <Edit />}
-  onClick={() => {
-    if (editMode) saveEdit();
-    setEditMode(!editMode);
-  }}
-  color={editMode ? "success" : "primary"}
->
-  {editMode ? 'Save Changes' : 'Edit WO'}
-</Button>
-)}
+          {role && ['ADMIN', 'SUPERVISOR', 'USER'].includes(role) && (
+            <Button
+              disabled={!canEditWO()}
+              variant={editMode ? "contained" : "outlined"}
+              startIcon={editMode ? <Save /> : <Edit />}
+              onClick={() => {
+                if (editMode) saveEdit();
+                setEditMode(!editMode);
+              }}
+              color={editMode ? "success" : "primary"}
+            >
+              {editMode ? 'Save Changes' : 'Edit WO'}
+            </Button>
+          )}
 
-{role && ['ADMIN', 'SUPERVISOR','USER'].includes(role) && (
-<Button
-  color="error"
-  variant="outlined"
-  startIcon={<DeleteOutline />}
-  onClick={deleteWO}
->
-  Delete
-</Button>
-)}
+          {role && ['ADMIN', 'SUPERVISOR', 'USER'].includes(role) && (
+            <Button
+              color="error"
+              variant="outlined"
+              startIcon={<DeleteOutline />}
+              onClick={deleteWO}
+            >
+              Delete
+            </Button>
+          )}
 
-</Stack>
+        </Stack>
       </Box>
 
       <Grid container spacing={3}>
@@ -315,10 +317,26 @@ export default function WorkOrderDetailPage() {
                 {/* ASSET */}
                 <Grid item xs={12} sm={8}>
                   <Typography variant="caption" color="text.secondary">Asset</Typography>
-                  <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 0.5, p: 1.5, borderRadius: 2, bgcolor: alpha('#7C7CFF', 0.05), border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', '&:hover': { bgcolor: alpha('#7C7CFF', 0.1) } }} onClick={() => router.push(`/assets/${wo.asset?.id}`)}>
-                    <Avatar variant="rounded" sx={{ bgcolor: alpha('#7C7CFF', 0.15), color: '#7C7CFF' }}><BuildCircle /></Avatar>
-                    <Box><Typography fontWeight={700}>{wo.asset?.name || '-'}</Typography><Typography variant="caption" color="text.secondary">{wo.asset?.code || 'No asset code'}</Typography></Box>
-                  </Stack>
+                  {editMode ? (
+                    <Autocomplete
+                      size="small"
+                      sx={{ mt: 0.5 }}
+                      options={assets}
+                      getOptionLabel={(a: any) => `${a.name}${a.code ? ` (${a.code})` : ''}`}
+                      value={assets.find((a: any) => a.id === form.assetId) || null}
+                      onChange={(_e, newVal) => setForm({ ...form, assetId: newVal?.id || '' })}
+                      isOptionEqualToValue={(opt: any, val: any) => opt.id === val.id}
+                      renderInput={(params) => (
+                        <TextField {...params} label="Search Asset..." placeholder="Ketik nama atau kode asset" />
+                      )}
+                    />
+                  ) : (
+                    <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 0.5, p: 1.5, borderRadius: 2, bgcolor: alpha('#7C7CFF', 0.05), border: '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', '&:hover': { bgcolor: alpha('#7C7CFF', 0.1) } }} onClick={() => router.push(`/assets/${wo.asset?.id}`)}
+                    >
+                      <Avatar variant="rounded" sx={{ bgcolor: alpha('#7C7CFF', 0.15), color: '#7C7CFF' }}><BuildCircle /></Avatar>
+                      <Box><Typography fontWeight={700}>{wo.asset?.name || '-'}</Typography><Typography variant="caption" color="text.secondary">{wo.asset?.code || 'No asset code'}</Typography></Box>
+                    </Stack>
+                  )}
                 </Grid>
 
                 {/* UNIT (NEW SECTION) */}
@@ -356,7 +374,7 @@ export default function WorkOrderDetailPage() {
                 </Grid>
                 <Grid item xs={12} sm={4}>
                   <Typography variant="caption" color="text.secondary">Created By</Typography>
-                  <Typography fontWeight={600}>{wo.createdBy?.email || wo.createdBy?.name || '-'}</Typography>
+                  <Typography fontWeight={600}>{wo.createdBy?.name || wo.createdBy?.name || '-'}</Typography>
                 </Grid>
                 <Grid item xs={12}>
                   <Typography variant="caption" color="text.secondary">Description</Typography>
@@ -430,7 +448,9 @@ export default function WorkOrderDetailPage() {
                   <Box key={c.id} sx={{ mb: 2, p: 1.5, borderRadius: 2, bgcolor: c.message.startsWith('System:') ? alpha('#7C7CFF', 0.05) : alpha('#fff', 0.03) }}>
                     <Typography variant="caption" color="primary" fontWeight={700}>{c.user.email.split('@')[0]}</Typography>
                     <Typography variant="body2" sx={{ my: 0.5 }}>{c.message}</Typography>
-                    <Typography variant="caption" color="text.secondary">{new Date(c.createdAt).toLocaleTimeString()}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(c.createdAt).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </Typography>
                   </Box>
                 ))}
               </Box>

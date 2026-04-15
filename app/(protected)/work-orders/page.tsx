@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import {
   Container, Typography, Paper, Table, TableHead, TableRow, TableCell,
   TableBody, Box, Button, IconButton, Stack, Tooltip, TableContainer,
-  alpha, TextField, InputAdornment, MenuItem, FormControl, Select, Grid, TableSortLabel
+  alpha, TextField, InputAdornment, MenuItem, FormControl, Select, Grid, TableSortLabel,
+  TablePagination, Checkbox
 } from '@mui/material';
 import {
   DeleteOutline, Add, DashboardOutlined, CalendarMonthOutlined,
@@ -36,6 +37,11 @@ export default function WorkOrdersPage() {
   // Sort State
   const [order, setOrder] = useState<'asc' | 'desc'>('desc');
   const [orderBy, setOrderBy] = useState('createdAt');
+
+  // ================= MULTIPLE SELECT & PAGINATION =================
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Opsi Unit sesuai request lo
   const unitOptions = ['TK', 'SD', 'SMP', 'SMA', 'NonUnit'];
@@ -115,6 +121,7 @@ export default function WorkOrdersPage() {
     });
 
     setFilteredData(result);
+    setPage(0); // Reset page setiap filter berubah
   }, [search, statusFilter, priorityFilter, assigneeFilter, creatorFilter, unitFilter, startDate, endDate, workOrders, order, orderBy]);
 
   const handleSort = (property: string) => {
@@ -138,6 +145,37 @@ export default function WorkOrdersPage() {
 
   const uniqueAssignees = Array.from(new Set(workOrders.map(wo => wo.assignee?.email).filter(Boolean)));
   const uniqueCreators = Array.from(new Set(workOrders.map(wo => wo.createdBy?.email).filter(Boolean)));
+
+  // ================= MULTI SELECT HANDLERS =================
+  const handleSelectAllClick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelected(new Set(paginated.map((wo: any) => wo.id)));
+    } else {
+      setSelected(new Set());
+    }
+  };
+
+  const handleSelect = (id: string) => {
+    const newSelected = new Set(selected);
+    if (newSelected.has(id)) newSelected.delete(id);
+    else newSelected.add(id);
+    setSelected(newSelected);
+  };
+
+  const deleteSelected = async () => {
+    if (!selected.size) return alert('No work orders selected!');
+    if (!confirm(`Delete ${selected.size} selected work orders?`)) return;
+    try {
+      await Promise.all(Array.from(selected).map(id => api.delete(`/work-orders/${id}`)));
+      setSelected(new Set());
+      loadData();
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Failed to delete selected work orders');
+    }
+  };
+
+  // ================= PAGINATION DATA =================
+  const paginated = filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   // ================= ACTIONS =================
   const updateStatus = async (id: string, status: string) => {
@@ -198,11 +236,17 @@ const sendWhatsApp = (wo: any) => {
             Work Orders
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage, track, and assign maintenance tasks efficiently.
+            Total: {filteredData.length} work orders
           </Typography>
         </Box>
 
-        <Stack direction="row" spacing={1.5}>
+        <Stack direction="row" spacing={1.5} flexWrap="wrap">
+          {selected.size > 0 && (
+            <Button variant="contained" color="error" startIcon={<DeleteOutline />} onClick={deleteSelected} sx={{ borderRadius: '12px', textTransform: 'none' }}>
+              Delete Selected ({selected.size})
+            </Button>
+          )}
+
           {role && ['ADMIN', 'SUPERVISOR','USER'].includes(role) && (
             <Button
               variant="outlined"
@@ -213,7 +257,7 @@ const sendWhatsApp = (wo: any) => {
               Kanban
             </Button>
           )}
-          
+
           {role && ['ADMIN', 'SUPERVISOR', 'TECHNICIAN','USER'].includes(role) && (
             <Button
               variant="outlined"
@@ -224,15 +268,16 @@ const sendWhatsApp = (wo: any) => {
               Calendar
             </Button>
           )}
+
           {role && ['ADMIN', 'SUPERVISOR','USER'].includes(role) && (
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => router.push('/work-orders/new')}
-            sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 700, px: 3, boxShadow: '0 4px 14px rgba(124, 124, 255, 0.4)' }}
-          >
-            New Order
-          </Button>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => router.push('/work-orders/new')}
+              sx={{ borderRadius: '12px', textTransform: 'none', fontWeight: 700, px: 3, boxShadow: '0 4px 14px rgba(124, 124, 255, 0.4)' }}
+            >
+              New Order
+            </Button>
           )}
         </Stack>
       </Box>
@@ -352,38 +397,43 @@ const sendWhatsApp = (wo: any) => {
                 <TableSortLabel active={orderBy === 'dueDate'} direction={orderBy === 'dueDate' ? order : 'asc'} onClick={() => handleSort('dueDate')}>Due Date</TableSortLabel>
               </TableCell>
 
-              {/* MODIFIKASI DISINI: STICKY HEADER */}
-              <TableCell 
-                align="right" 
-                sx={{ 
-                  fontWeight: 700, 
-                  position: 'sticky', 
-                  right: 0, 
-                  bgcolor: '#1c1c21', // Sesuaikan dengan warna background table lo
-                  zIndex: 2,
-                  boxShadow: '-4px 0 8px rgba(0,0,0,0.3)' 
-                }}
+              {/* STICKY ACTIONS HEADER */}
+              <TableCell
+                align="right"
+                sx={{ fontWeight: 700, position: 'sticky', right: 0, bgcolor: '#1c1c21', zIndex: 2, boxShadow: '-4px 0 8px rgba(0,0,0,0.3)' }}
               >
                 Actions
+              </TableCell>
+              <TableCell padding="checkbox" align="center">
+                <Checkbox
+                  size="small"
+                  checked={paginated.length > 0 && paginated.every((wo: any) => selected.has(wo.id))}
+                  onChange={handleSelectAllClick}
+                  sx={{ color: 'rgba(255,255,255,0.3)', '&.Mui-checked': { color: '#7C7CFF' } }}
+                />
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredData.map((wo) => (
-              <TableRow key={wo.id} hover onClick={() => router.push(`/work-orders/${wo.id}`)} sx={{ cursor: 'pointer', '&:last-child td, &:last-child th': { border: 0 } }}>
-                {/* ... cell lainnya ... */}
+            {paginated.map((wo: any) => (
+              <TableRow
+                key={wo.id}
+                hover
+                onClick={() => router.push(`/work-orders/${wo.id}`)}
+                sx={{ cursor: 'pointer', '&:last-child td, &:last-child th': { border: 0 }, bgcolor: selected.has(wo.id) ? alpha('#7C7CFF', 0.04) : 'transparent' }}
+              >
                 <TableCell><Typography variant="body2" sx={{ fontWeight: 600 }}>{wo.title}</Typography></TableCell>
                 <TableCell>
-                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: wo.priority === 'HIGH' ? '#f44336' : '#7C7CFF', boxShadow: `0 0 6px ${wo.priority === 'HIGH' ? '#f44336' : '#7C7CFF'}` }} />
                     <Typography variant="caption" sx={{ fontWeight: 700 }}>{wo.priority}</Typography>
                   </Box>
                 </TableCell>
                 <TableCell>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <StatusChip status={wo.status} />
-                      {wo.isOverdue && <StatusChip status="OVERDUE"/>}
-                    </Stack>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <StatusChip status={wo.status} />
+                    {wo.isOverdue && <StatusChip status="OVERDUE" />}
+                  </Stack>
                 </TableCell>
                 <TableCell>
                   <Stack direction="row" spacing={1} alignItems="center">
@@ -397,45 +447,86 @@ const sendWhatsApp = (wo: any) => {
                 <TableCell><Typography variant="body2">{wo.createdBy?.email?.split('@')[0] || '-'}</Typography></TableCell>
                 <TableCell><Typography variant="body2">{wo.dueDate ? new Date(wo.dueDate).toLocaleDateString() : '-'}</Typography></TableCell>
 
-                {/* MODIFIKASI DISINI: STICKY BODY CELL */}
-                <TableCell 
+                {/* STICKY ACTIONS CELL */}
+                <TableCell
                   align="right"
-                  sx={{ 
-                    position: 'sticky', 
-                    right: 0, 
-                    bgcolor: '#16161a', // Sedikit lebih gelap dari baris hover
-                    zIndex: 1,
-                    boxShadow: '-4px 0 8px rgba(0,0,0,0.3)' 
-                  }}
+                  sx={{ position: 'sticky', right: 0, bgcolor: '#16161a', zIndex: 1, boxShadow: '-4px 0 8px rgba(0,0,0,0.3)' }}
                 >
                   <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
-                    {/* ... Button Start/Finish lo ... */}
                     {role === 'TECHNICIAN' && wo.status === 'ASSIGNED' && (
                       <Button size="small" variant="contained" startIcon={<PlayArrowOutlined />} onClick={() => updateStatus(wo.id, 'IN_PROGRESS')} sx={{ borderRadius: '8px', textTransform: 'none' }}>Start</Button>
-                    )}  
+                    )}
                     {role === 'TECHNICIAN' && wo.status === 'IN_PROGRESS' && (
                       <Button size="small" variant="contained" color="success" startIcon={<CheckCircleOutline />} onClick={() => updateStatus(wo.id, 'DONE')} sx={{ borderRadius: '8px', textTransform: 'none' }}>Finish</Button>
                     )}
-                    
-                    {/* Icon WA */}
                     {wo.assignee?.phoneNumber && (
                       <IconButton size="small" sx={{ color: '#25D366' }} onClick={() => sendWhatsApp(wo)}>
                         <WhatsAppIcon fontSize="small" />
                       </IconButton>
                     )}
-
-                    {/* Icon Delete */}
-                    {role && ['ADMIN', 'SUPERVISOR','USER'].includes(role) && (
+                    {role && ['ADMIN', 'SUPERVISOR', 'USER'].includes(role) && (
                       <IconButton size="small" sx={{ color: '#f44336' }} onClick={(e) => deleteWO(e, wo)}>
                         <DeleteOutline fontSize="small" />
                       </IconButton>
                     )}
                   </Box>
                 </TableCell>
+
+                {/* CHECKBOX */}
+                <TableCell padding="checkbox" align="center" onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    size="small"
+                    checked={selected.has(wo.id)}
+                    onChange={() => handleSelect(wo.id)}
+                    sx={{ color: 'rgba(255,255,255,0.3)', '&.Mui-checked': { color: '#7C7CFF' } }}
+                  />
+                </TableCell>
               </TableRow>
             ))}
+
+            {paginated.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={11} align="center" sx={{ py: 10 }}>
+                  <Typography variant="body1" color="text.secondary" fontWeight={500}>
+                    No work orders found matching your criteria.
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
+
+        {/* PAGINATION FOOTER */}
+        <Box sx={{
+          px: 2, py: 1.5,
+          borderTop: '1px solid rgba(255,255,255,0.08)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          bgcolor: alpha('#fff', 0.01)
+        }}>
+          <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+            Showing {filteredData.length === 0 ? 0 : page * rowsPerPage + 1} to {Math.min((page + 1) * rowsPerPage, filteredData.length)} of {filteredData.length} entries
+          </Typography>
+
+          <TablePagination
+            component="div"
+            count={filteredData.length}
+            page={page}
+            onPageChange={(_e, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+            rowsPerPageOptions={[5, 10, 20, 50]}
+            labelRowsPerPage="Rows:"
+            sx={{
+              border: 'none',
+              color: 'text.secondary',
+              '& .MuiTablePagination-spacer': { display: 'none' },
+              '& .MuiTablePagination-selectLabel': { fontSize: '12px', fontWeight: 600 },
+              '& .MuiTablePagination-displayedRows': { display: 'none' },
+              '& .MuiTablePagination-select': { borderRadius: '8px', bgcolor: alpha('#fff', 0.05), fontSize: '12px' },
+              '& .MuiTablePagination-actions': { ml: 2 }
+            }}
+          />
+        </Box>
       </TableContainer>
     </Container>
   );
