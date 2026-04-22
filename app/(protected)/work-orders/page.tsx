@@ -7,7 +7,7 @@ import {
   Container, Typography, Paper, Table, TableHead, TableRow, TableCell,
   TableBody, Box, Button, IconButton, Stack, Tooltip, TableContainer,
   alpha, TextField, InputAdornment, MenuItem, FormControl, Select, Grid, TableSortLabel,
-  TablePagination, Checkbox
+  TablePagination, Checkbox, ListItemText, OutlinedInput, Chip
 } from '@mui/material';
 import {
   DeleteOutline, Add, DashboardOutlined, CalendarMonthOutlined,
@@ -26,11 +26,11 @@ export default function WorkOrdersPage() {
   // ================= STATE FILTERING & SORTING =================
   const [filteredData, setFilteredData] = useState<any[]>([]);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [priorityFilter, setPriorityFilter] = useState('ALL');
-  const [assigneeFilter, setAssigneeFilter] = useState('ALL');
-  const [creatorFilter, setCreatorFilter] = useState('ALL');
-  const [unitFilter, setUnitFilter] = useState('ALL'); // NEW: Unit Filter
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [priorityFilter, setPriorityFilter] = useState<string[]>([]);
+  const [assigneeFilter, setAssigneeFilter] = useState<string[]>([]);
+  const [creatorFilter, setCreatorFilter] = useState<string[]>([]);
+  const [unitFilter, setUnitFilter] = useState<string[]>([]); // NEW: Unit Filter
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
@@ -78,21 +78,20 @@ export default function WorkOrdersPage() {
     }
 
     // Status Filter
-    if (statusFilter !== 'ALL') {
-      if (statusFilter === 'OVERDUE') {
-        result = result.filter(wo => wo.isOverdue === true);
-      } else {
-        result = result.filter(wo => wo.status === statusFilter);
-      }
+    if (statusFilter.length > 0) {
+      result = result.filter(wo => {
+        const matchStatus = statusFilter.includes(wo.status);
+        const matchOverdue = statusFilter.includes('OVERDUE') && wo.isOverdue;
+        return matchStatus || matchOverdue;
+      });
     }
 
-    if (priorityFilter !== 'ALL') result = result.filter(wo => wo.priority === priorityFilter);
-    if (assigneeFilter !== 'ALL') result = result.filter(wo => wo.assignee?.email === assigneeFilter);
-    if (creatorFilter !== 'ALL') result = result.filter(wo => wo.createdBy?.email === creatorFilter);
+    if (priorityFilter.length > 0) result = result.filter(wo => priorityFilter.includes(wo.priority));
+    if (assigneeFilter.length > 0) result = result.filter(wo => wo.assignee?.email && assigneeFilter.includes(wo.assignee.email));
+    if (creatorFilter.length > 0) result = result.filter(wo => wo.createdBy?.email && creatorFilter.includes(wo.createdBy.email));
     
-    // NEW: Unit Filter Logic (Langsung dari object wo)
-    if (unitFilter !== 'ALL') {
-      result = result.filter(wo => wo.unit === unitFilter);
+    if (unitFilter.length > 0) {
+      result = result.filter(wo => wo.unit && unitFilter.includes(wo.unit));
     }
     
     // Date Filter
@@ -132,11 +131,11 @@ export default function WorkOrdersPage() {
 
   const resetFilters = () => {
     setSearch('');
-    setStatusFilter('ALL');
-    setPriorityFilter('ALL');
-    setAssigneeFilter('ALL');
-    setCreatorFilter('ALL');
-    setUnitFilter('ALL');
+    setStatusFilter([]);
+    setPriorityFilter([]);
+    setAssigneeFilter([]);
+    setCreatorFilter([]);
+    setUnitFilter([]);
     setStartDate('');
     setEndDate('');
     setOrder('desc');
@@ -293,24 +292,42 @@ const sendWhatsApp = (wo: any) => {
           <Grid item xs={6} md={1.2}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>STATUS</Typography>
             <FormControl fullWidth size="small">
-              <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} sx={{ borderRadius: '10px' }}>
-                <MenuItem value="ALL">All</MenuItem>
-                <MenuItem value="OPEN">Open</MenuItem>
-                <MenuItem value="ASSIGNED">Assigned</MenuItem>
-                <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
-                <MenuItem value="DONE">Done</MenuItem>
-                <MenuItem value="OVERDUE" sx={{ color: '#f44336', fontWeight: 'bold' }}>⚠️ OVERDUE</MenuItem>
+              <Select 
+                multiple
+                displayEmpty
+                value={statusFilter} 
+                onChange={(e) => setStatusFilter(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)} 
+                renderValue={(selected) => {
+                  if (selected.length === 0) return <span style={{ opacity: 0.6 }}>All Status</span>;
+                  return selected.join(', ');
+                }}
+                sx={{ borderRadius: '10px' }}
+              >
+                <MenuItem value="OPEN"><Checkbox size="small" checked={statusFilter.includes('OPEN')} /><ListItemText primary="Open" /></MenuItem>
+                <MenuItem value="ASSIGNED"><Checkbox size="small" checked={statusFilter.includes('ASSIGNED')} /><ListItemText primary="Assigned" /></MenuItem>
+                <MenuItem value="IN_PROGRESS"><Checkbox size="small" checked={statusFilter.includes('IN_PROGRESS')} /><ListItemText primary="In Progress" /></MenuItem>
+                <MenuItem value="DONE"><Checkbox size="small" checked={statusFilter.includes('DONE')} /><ListItemText primary="Done" /></MenuItem>
+                <MenuItem value="OVERDUE"><Checkbox size="small" checked={statusFilter.includes('OVERDUE')} /><ListItemText primary="⚠️ OVERDUE" sx={{ color: '#f44336' }} /></MenuItem>
               </Select>
             </FormControl>
           </Grid>
           <Grid item xs={6} md={1.2}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>PRIORITY</Typography>
             <FormControl fullWidth size="small">
-              <Select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} sx={{ borderRadius: '10px' }}>
-                <MenuItem value="ALL">All</MenuItem>
-                <MenuItem value="LOW">Low</MenuItem>
-                <MenuItem value="MEDIUM">Medium</MenuItem>
-                <MenuItem value="HIGH">High</MenuItem>
+              <Select 
+                multiple
+                displayEmpty
+                value={priorityFilter} 
+                onChange={(e) => setPriorityFilter(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)} 
+                renderValue={(selected) => {
+                  if (selected.length === 0) return <span style={{ opacity: 0.6 }}>All Priority</span>;
+                  return selected.join(', ');
+                }}
+                sx={{ borderRadius: '10px' }}
+              >
+                <MenuItem value="LOW"><Checkbox size="small" checked={priorityFilter.includes('LOW')} /><ListItemText primary="Low" /></MenuItem>
+                <MenuItem value="MEDIUM"><Checkbox size="small" checked={priorityFilter.includes('MEDIUM')} /><ListItemText primary="Medium" /></MenuItem>
+                <MenuItem value="HIGH"><Checkbox size="small" checked={priorityFilter.includes('HIGH')} /><ListItemText primary="High" /></MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -319,9 +336,23 @@ const sendWhatsApp = (wo: any) => {
           <Grid item xs={6} md={1.2}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>UNIT</Typography>
             <FormControl fullWidth size="small">
-              <Select value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)} sx={{ borderRadius: '10px' }}>
-                <MenuItem value="ALL">All Units</MenuItem>
-                {unitOptions.map(u => <MenuItem key={u} value={u}>{u}</MenuItem>)}
+              <Select 
+                multiple
+                displayEmpty
+                value={unitFilter} 
+                onChange={(e) => setUnitFilter(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)} 
+                renderValue={(selected) => {
+                  if (selected.length === 0) return <span style={{ opacity: 0.6 }}>All Units</span>;
+                  return selected.join(', ');
+                }}
+                sx={{ borderRadius: '10px' }}
+              >
+                {unitOptions.map(u => (
+                  <MenuItem key={u} value={u}>
+                    <Checkbox size="small" checked={unitFilter.includes(u)} />
+                    <ListItemText primary={u} />
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
@@ -329,18 +360,46 @@ const sendWhatsApp = (wo: any) => {
           <Grid item xs={6} md={1.5}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>ASSIGNEE</Typography>
             <FormControl fullWidth size="small">
-              <Select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} sx={{ borderRadius: '10px' }}>
-                <MenuItem value="ALL">All Staff</MenuItem>
-                {uniqueAssignees.map((email: any) => <MenuItem key={email} value={email}>{email.split('@')[0]}</MenuItem>)}
+              <Select 
+                multiple
+                displayEmpty
+                value={assigneeFilter} 
+                onChange={(e) => setAssigneeFilter(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)} 
+                renderValue={(selected) => {
+                  if (selected.length === 0) return <span style={{ opacity: 0.6 }}>All Staff</span>;
+                  return selected.map(s => s.split('@')[0]).join(', ');
+                }}
+                sx={{ borderRadius: '10px' }}
+              >
+                {uniqueAssignees.map((email: any) => (
+                  <MenuItem key={email} value={email}>
+                    <Checkbox size="small" checked={assigneeFilter.includes(email)} />
+                    <ListItemText primary={email.split('@')[0]} />
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
           <Grid item xs={6} md={1.5}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, mb: 0.5, display: 'block' }}>CREATED BY</Typography>
             <FormControl fullWidth size="small">
-              <Select value={creatorFilter} onChange={(e) => setCreatorFilter(e.target.value)} sx={{ borderRadius: '10px' }}>
-                <MenuItem value="ALL">All Creators</MenuItem>
-                {uniqueCreators.map((email: any) => <MenuItem key={email} value={email}>{email.split('@')[0]}</MenuItem>)}
+              <Select 
+                multiple
+                displayEmpty
+                value={creatorFilter} 
+                onChange={(e) => setCreatorFilter(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)} 
+                renderValue={(selected) => {
+                  if (selected.length === 0) return <span style={{ opacity: 0.6 }}>All Creators</span>;
+                  return selected.map(s => s.split('@')[0]).join(', ');
+                }}
+                sx={{ borderRadius: '10px' }}
+              >
+                {uniqueCreators.map((email: any) => (
+                  <MenuItem key={email} value={email}>
+                    <Checkbox size="small" checked={creatorFilter.includes(email)} />
+                    <ListItemText primary={email.split('@')[0]} />
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
